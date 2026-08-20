@@ -117,7 +117,6 @@ max-args = 7
 "*.pyi" = [
   "ANN401",
   "PYI029",
-  "W505",
 ]
 
 [tool.ruff.lint.pycodestyle]
