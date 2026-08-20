@@ -11,8 +11,7 @@ authors = [
 maintainers = []
 description = "Qiskit extension to simulate quantum qudits with qubits."
 readme = "README.md"
-license = "AGPL v3"
-license-files = ["LICENSE"]
+license = { text = "AGPL v3" }
 keywords = [
     "qiskit",
     "quantum circuit",
