@@ -1,0 +1,135 @@
+[project]
+name = "qiskit-qudits"
+version = "1.0.0"
+dependencies = [
+  "qiskit>=2.0.0"
+]
+requires-python = ">=3.11"
+authors = [
+  {name = "Francesco Pudda", email = "francesco.pudda@mail.com"}
+]
+maintainers = []
+description = "Qiskit extension to simulate quantum qudits with qubits."
+readme = "README.md"
+license = "AGPL v3"
+license-files = ["LICENSE"]
+keywords = [
+    "qiskit",
+    "quantum circuit",
+    "quantum computing",
+    "quantum programming language",
+    "quantum",
+    "sdk",
+    "qudits",
+    "quantum qudits",
+]
+classifiers = [
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU Affero General Public License version 3",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=9.0.0"
+]
+
+[tool.pytest.ini_options]
+minversion = "9.0"
+pythonpath = [".", "src"]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --strict-config"
+markers = [
+  "slow: tests that simulate many shots or large dimensions",
+]
+filterwarnings = ["error::DeprecationWarning:qiskit_qudits.*"]
+
+[project.urls]
+Repository = "https://github.com/Frank995/qiskit-qudits"
+Issues = "https://github.com/Frank995/qiskit-qudits/issues"
+
+[tool.black]
+required-version = "26"
+target-version = ["py311", "py312", "py313"]
+include = '\.pyi?$'
+preview = false
+unstable = false
+line-length = 79
+skip-string-normalization = false
+skip-magic-trailing-comma = false
+
+[tool.ruff]
+required-version = ">=0.16.0"
+target-version = "py311"
+include = ["*.py", "*.pyi"]
+line-length = 79
+indent-width = 4
+respect-gitignore = true
+
+[tool.ruff.analyze]
+type-checking-imports = true
+
+[tool.ruff.lint]
+allowed-confusables = []
+dummy-variable-rgx = "^_$"
+select = ["ALL"]
+ignore = [
+  "EM101",
+  "EM102",
+  "TRY003",
+  "DJ",
+  "AIR",
+  "PD",
+  "FAST",
+  "CPY",
+  "TD",
+  "FIX",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.pylint]
+max-args = 7
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = [
+  "D104",
+]
+"tests/**" = [
+  "S101",
+  "PLR2004",
+  "SLF001",
+  "ANN401",
+  "PLC0415",
+  "FBT001",
+  "W505",
+]
+"*.pyi" = [
+  "ANN401",
+  "PYI029",
+  "W505",
+]
+
+[tool.ruff.lint.pycodestyle]
+ignore-overlong-task-comments = false
+max-doc-length = 72
+
+[tool.ruff.lint.mccabe]
+max-complexity = 11
+
+[tool.pyright]
+typeCheckingMode = "strict"
+pythonVersion = "3.11"
+pythonPlatform = "All"
+include = ["src"]
+ignore = ["tests"]
