@@ -1,0 +1,20 @@
+{
+    "editor.rulers": [
+        72,
+        79
+    ],
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.formatOnSave": false,
+    },
+    "black-formatter.cwd": "${workspaceFolder}",
+    "black-formatter.importStrategy": "fromEnvironment",
+    "ruff.enable": true,
+    "ruff.importStrategy": "fromEnvironment",
+    "python.languageServer": "Pylance",
+    "python.testing.pytestArgs": [
+        "tests"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true
+}
