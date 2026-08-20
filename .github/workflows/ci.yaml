@@ -1,0 +1,41 @@
+name: CI Pipeline
+
+on:
+  workflow_dispatch: 
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  verify-code:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # Installs your package in editable mode along with the [dev] dependencies
+          pip install -e .[dev]
+
+      - name: Check formatting (Black)
+        run: black --check .
+
+      - name: Linting (Ruff)
+        run: ruff check .
+
+      - name: Type checking (Pyright)
+        run: pyright
+
+      - name: Unit tests (Pytest)
+        run: pytest

@@ -40,11 +40,14 @@ classifiers = [
 
 [project.optional-dependencies]
 dev = [
-  "pytest>=9.0.0"
+  "black>=25.5.0",
+  "ruff>=0.16.0",
+  "pyright>=1.1.411",
+  "pytest>=9.1.0",
 ]
 
 [tool.pytest.ini_options]
-minversion = "9.0"
+minversion = "9.1"
 pythonpath = [".", "src"]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers --strict-config"
