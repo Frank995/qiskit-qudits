@@ -1,4 +1,4 @@
 from .exceptions import QuditCircuitError
-from .quantumcircuit import QuantumCircuit
+from .quantumcircuit import QuditQuantumCircuit
 
-__all__ = ["QuantumCircuit", "QuditCircuitError"]
+__all__ = ["QuditCircuitError", "QuditQuantumCircuit"]

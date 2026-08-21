@@ -133,4 +133,4 @@ typeCheckingMode = "strict"
 pythonVersion = "3.11"
 pythonPlatform = "All"
 include = ["src"]
-ignore = ["tests"]
+ignore = ["tests", "*.ipynb"]
