@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 import pytest
 from qiskit.circuit import Barrier, Measure, QuantumCircuit, Reset
 
-from qiskit_qudits.circuit.clbyte import ClByte, ClByteRegister
+from qiskit_qudits.circuit.cldigit import ClDigit, ClDigitRegister
 from qiskit_qudits.circuit.exceptions import QuditCircuitError
 from qiskit_qudits.circuit.quantumcircuit import QuditQuantumCircuit
 from qiskit_qudits.circuit.qudit import Qudit, QuditRegister
@@ -31,10 +31,10 @@ MIXED_DIMS = (2, 3, 5)
 
 
 def mixed_circuit() -> QuditQuantumCircuit:
-    """Return a heterogeneous circuit with matching clbytes."""
+    """Return a heterogeneous circuit with matching cldigits."""
     return QuditQuantumCircuit(
         QuditRegister.from_dims(MIXED_DIMS, "mix"),
-        ClByteRegister.from_dims(MIXED_DIMS, "out"),
+        ClDigitRegister.from_dims(MIXED_DIMS, "out"),
     )
 
 
@@ -42,16 +42,16 @@ def circuit_with_loose_wires() -> QuditQuantumCircuit:
     """Return a circuit mixing registers and loose objects."""
     circuit = QuditQuantumCircuit(
         QuditRegister(2, 3, "reg"),
-        ClByteRegister(1, 3, "creg"),
+        ClDigitRegister(1, 3, "creg"),
     )
     circuit.add_qudits([Qudit(3)])
-    circuit.add_clbytes([ClByte(3)])
+    circuit.add_cldigits([ClDigit(3)])
     return circuit
 
 
-def two_byte_circuit() -> QuditQuantumCircuit:
-    """Return a circuit whose only wires are two qutrit clbytes."""
-    return QuditQuantumCircuit(ClByteRegister.from_dims([3, 3], "out"))
+def two_digit_circuit() -> QuditQuantumCircuit:
+    """Return a circuit whose only wires are two qutrit cldigits."""
+    return QuditQuantumCircuit(ClDigitRegister.from_dims([3, 3], "out"))
 
 
 class TestCopyEmptyLike:
@@ -65,7 +65,7 @@ class TestCopyEmptyLike:
         empty = original.copy_empty_like()
 
         assert empty.qudits == original.qudits
-        assert empty.clbytes == original.clbytes
+        assert empty.cldigits == original.cldigits
         assert empty.qdregs == original.qdregs
         assert empty.cbregs == original.cbregs
         assert empty.qubits == original.qubits
@@ -154,16 +154,16 @@ class TestCompose:
         assert len(base.data) == 0
 
     def test_an_explicit_mapping_is_honoured(self) -> None:
-        """``qudits``/``clbytes`` choose the destination wires."""
+        """``qudits``/``cldigits`` choose the destination wires."""
         base = QuditQuantumCircuit(3, 3, dim=3)
         other = QuditQuantumCircuit(1, 1, dim=3)
         other.measure(0, 0)
 
-        composed = base.compose(other, qudits=[2], clbytes=[1])
+        composed = base.compose(other, qudits=[2], cldigits=[1])
 
         assert composed is not None
         assert composed.data[0].qudits == (base.qudits[2],)
-        assert composed.data[0].clbytes == (base.clbytes[1],)
+        assert composed.data[0].cldigits == (base.cldigits[1],)
 
     def test_inplace_composition_returns_none(self) -> None:
         """``inplace=True`` mutates the receiver."""
@@ -221,14 +221,14 @@ class TestCompose:
         with pytest.raises(QuditCircuitError, match="onto 1 target"):
             base.compose(other)
 
-    def test_a_clbyte_count_mismatch_is_rejected(self) -> None:
-        """Clbytes are mapped one-to-one as well."""
+    def test_a_cldigit_count_mismatch_is_rejected(self) -> None:
+        """Cldigits are mapped one-to-one as well."""
         base = QuditQuantumCircuit(1, dim=3)
         other = QuditQuantumCircuit(1, 1, dim=3)
 
         with pytest.raises(
             QuditCircuitError,
-            match=r"1 clbyte.* onto 0 target",
+            match=r"1 cldigit.* onto 0 target",
         ):
             base.compose(other)
 
@@ -326,8 +326,8 @@ class TestMetrics:
 
         assert circuit.depth() == 2
 
-    def test_depth_follows_the_clbyte_wires(self) -> None:
-        """Two qudits sharing a clbyte are serialised by it."""
+    def test_depth_follows_the_cldigit_wires(self) -> None:
+        """Two qudits sharing a cldigit are serialised by it."""
         circuit = QuditQuantumCircuit(2, 1, dim=3)
         circuit.measure(0, 0)
         circuit.measure(1, 0)
@@ -355,7 +355,7 @@ class TestMetrics:
         """Without instructions the critical path is empty."""
         assert build().depth() == 0
 
-    def test_width_counts_qudits_and_clbytes(self) -> None:
+    def test_width_counts_qudits_and_cldigits(self) -> None:
         """Width is measured in qudit wires, not qubit wires."""
         assert QuditQuantumCircuit(2, 3, dim=3).width() == 5
         assert mixed_circuit().width() == 6
@@ -398,7 +398,7 @@ class TestQubitView:
 class TestIdealView:
     """``to_ideal_circuit`` renders one wire per qudit."""
 
-    def test_one_wire_per_qudit_and_clbyte(self) -> None:
+    def test_one_wire_per_qudit_and_cldigit(self) -> None:
         """Registers keep their qudit-level names and sizes."""
         circuit = mixed_circuit()
 
@@ -414,7 +414,7 @@ class TestIdealView:
         """A registerless qudit gets a registerless qubit."""
         circuit = QuditQuantumCircuit()
         circuit.add_qudits([Qudit(3)])
-        circuit.add_clbytes([ClByte(3)])
+        circuit.add_cldigits([ClDigit(3)])
 
         ideal = circuit.to_ideal_circuit()
 
@@ -517,7 +517,7 @@ class TestDrawing:
 
         assert repr(circuit) == (
             "<QuditQuantumCircuit 'quditcircuit-0': 2 qudit(s) "
-            "dims=(3, 3), 1 clbyte(s), 0 instruction(s), 4 qubit(s)>"
+            "dims=(3, 3), 1 cldigit(s), 0 instruction(s), 4 qubit(s)>"
         )
 
 
@@ -564,16 +564,16 @@ class TestEquality:
 class TestDecoding:
     """``decode_bitstring`` and ``decode_counts``."""
 
-    def test_decode_bitstring_uses_the_clbyte_layout(self) -> None:
-        """The rightmost characters belong to clbyte ``0``."""
-        circuit = two_byte_circuit()
+    def test_decode_bitstring_uses_the_cldigit_layout(self) -> None:
+        """The rightmost characters belong to cldigit ``0``."""
+        circuit = two_digit_circuit()
 
-        assert circuit.clbyte_widths == (2, 2)
+        assert circuit.cldigit_widths == (2, 2)
         assert circuit.decode_bitstring("01 10") == (2, 1)
 
     def test_decode_counts_aggregates_by_levels(self) -> None:
         """Every key of the mapping is decoded and summed."""
-        circuit = two_byte_circuit()
+        circuit = two_digit_circuit()
 
         decoded = circuit.decode_counts({"01 10": 5, "00 10": 3})
 
@@ -593,21 +593,21 @@ class TestDecoding:
         expected: dict[Levels, int],
     ) -> None:
         """Level 3 leaks out of a three-level qudit."""
-        circuit = QuditQuantumCircuit(ClByteRegister(1, 3, "out"))
+        circuit = QuditQuantumCircuit(ClDigitRegister(1, 3, "out"))
 
         decoded = circuit.decode_counts({"11": 4, "10": 6}, on_invalid=policy)
 
         assert decoded == expected
 
     def test_leakage_can_be_turned_into_an_error(self) -> None:
-        """``on_invalid='raise'`` reports the offending byte."""
-        circuit = QuditQuantumCircuit(ClByteRegister(1, 3, "out"))
+        """``on_invalid='raise'`` reports the offending digit."""
+        circuit = QuditQuantumCircuit(ClDigitRegister(1, 3, "out"))
 
         with pytest.raises(ValueError, match="outside the 3-level"):
             circuit.decode_counts({"11": 4}, on_invalid="raise")
 
     def test_a_dropped_shot_decodes_to_none(self) -> None:
         """A single leaked bit-string can be discarded."""
-        circuit = QuditQuantumCircuit(ClByteRegister(1, 3, "out"))
+        circuit = QuditQuantumCircuit(ClDigitRegister(1, 3, "out"))
 
         assert circuit.decode_bitstring("11", on_invalid="drop") is None

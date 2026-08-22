@@ -2,12 +2,12 @@
 
 The directives are the only place where the qudit data model touches a
 real :class:`~qiskit.circuit.QuantumCircuit`, so every ``apply`` test
-builds a plain Qiskit circuit, wraps :class:`Qudit`/:class:`ClByte`
+builds a plain Qiskit circuit, wraps :class:`Qudit`/:class:`ClDigit`
 handles around its bits, applies the directive and then inspects
 ``circuit.data``.
 
 Assertions are always on the *order* of the emitted operations: the
-little-endian pairing between a qudit's qubits and a clbyte's clbits is
+little-endian pairing between a qudit's qubits and a cldigit's clbits is
 the whole point of the encoding.
 """
 
@@ -19,7 +19,7 @@ import numpy as np
 import pytest
 from qiskit.circuit import QuantumCircuit
 
-from qiskit_qudits.circuit.clbyte import ClByte
+from qiskit_qudits.circuit.cldigit import ClDigit
 from qiskit_qudits.circuit.directives import (
     QuditBarrier,
     QuditDirective,
@@ -53,7 +53,7 @@ class DummyDirective(QuditDirective):
         self,
         dims: Sequence[IntLike],
         *,
-        num_clbytes: int = 0,
+        num_cldigits: int = 0,
         num_clbits: int = 0,
         params: Sequence[object] = (),
         label: str | None = None,
@@ -62,7 +62,7 @@ class DummyDirective(QuditDirective):
 
         Args:
             dims: Dimension of each target qudit.
-            num_clbytes: Number of target clbytes.
+            num_cldigits: Number of target cldigits.
             num_clbits: Total number of target clbits.
             params: Values forwarded to :attr:`params`.
             label: Optional display label.
@@ -70,53 +70,53 @@ class DummyDirective(QuditDirective):
         super().__init__(
             "dummy",
             dims,
-            num_clbytes=num_clbytes,
+            num_cldigits=num_cldigits,
             num_clbits=num_clbits,
             params=params,
             label=label,
         )
         self.calls: list[
-            tuple[QuantumCircuit, tuple[Qudit, ...], tuple[ClByte, ...]]
+            tuple[QuantumCircuit, tuple[Qudit, ...], tuple[ClDigit, ...]]
         ] = []
 
     def apply(
         self,
         circuit: QuantumCircuit,
         qudits: Sequence[Qudit],
-        clbytes: Sequence[ClByte],
+        cldigits: Sequence[ClDigit],
     ) -> None:
         """Validate the resolved targets and record the call.
 
         Args:
             circuit: The encoded circuit (left untouched).
             qudits: Resolved target qudits.
-            clbytes: Resolved target clbytes.
+            cldigits: Resolved target cldigits.
         """
-        self._check_targets(qudits, clbytes)
-        self.calls.append((circuit, tuple(qudits), tuple(clbytes)))
+        self._check_targets(qudits, cldigits)
+        self.calls.append((circuit, tuple(qudits), tuple(cldigits)))
 
 
 def build_targets(
     dims: Sequence[int],
-    clbyte_dims: Sequence[int] = (),
-) -> tuple[QuantumCircuit, list[Qudit], list[ClByte]]:
-    """Build a plain circuit plus qudits/clbytes over its own bits.
+    cldigit_dims: Sequence[int] = (),
+) -> tuple[QuantumCircuit, list[Qudit], list[ClDigit]]:
+    """Build a plain circuit plus qudits/cldigits over its own bits.
 
     The bits are handed out in order, so qudit ``0`` owns the lowest
-    qubit indices and clbyte ``0`` the lowest clbit indices.
+    qubit indices and cldigit ``0`` the lowest clbit indices.
 
     Args:
         dims: Dimension of each qudit, in target order.
-        clbyte_dims: Dimension of each clbyte, in target order.
+        cldigit_dims: Dimension of each cldigit, in target order.
 
     Returns:
-        The circuit, its qudits and its clbytes.
+        The circuit, its qudits and its cldigits.
     """
     widths = [WIDTHS[dim] for dim in dims]
-    clbyte_widths = [WIDTHS[dim] for dim in clbyte_dims]
+    cldigit_widths = [WIDTHS[dim] for dim in cldigit_dims]
     circuit = (
-        QuantumCircuit(sum(widths), sum(clbyte_widths))
-        if clbyte_widths
+        QuantumCircuit(sum(widths), sum(cldigit_widths))
+        if cldigit_widths
         else QuantumCircuit(sum(widths))
     )
 
@@ -126,13 +126,13 @@ def build_targets(
         qudits.append(Qudit(dim, circuit.qubits[offset : offset + width]))
         offset += width
 
-    clbytes: list[ClByte] = []
+    cldigits: list[ClDigit] = []
     offset = 0
-    for dim, width in zip(clbyte_dims, clbyte_widths, strict=True):
-        clbytes.append(ClByte(dim, circuit.clbits[offset : offset + width]))
+    for dim, width in zip(cldigit_dims, cldigit_widths, strict=True):
+        cldigits.append(ClDigit(dim, circuit.clbits[offset : offset + width]))
         offset += width
 
-    return circuit, qudits, clbytes
+    return circuit, qudits, cldigits
 
 
 def operation_names(circuit: QuantumCircuit) -> list[str]:
@@ -205,13 +205,13 @@ class TestQuditDirectiveBase:
     def test_classical_widths_default_to_zero(self) -> None:
         """A purely quantum directive has no classical operands."""
         directive = DummyDirective([3])
-        assert directive.num_clbytes == 0
+        assert directive.num_cldigits == 0
         assert directive.num_clbits == 0
 
     def test_classical_widths_are_stored(self) -> None:
-        """Clbyte and clbit counts are kept independently."""
-        directive = DummyDirective([3, 2], num_clbytes=2, num_clbits=3)
-        assert directive.num_clbytes == 2
+        """Cldigit and clbit counts are kept independently."""
+        directive = DummyDirective([3, 2], num_cldigits=2, num_clbits=3)
+        assert directive.num_cldigits == 2
         assert directive.num_clbits == 3
 
     def test_params_and_label_reach_the_qiskit_instruction(self) -> None:
@@ -227,13 +227,13 @@ class TestCheckTargets:
 
     def test_matching_targets_are_accepted(self) -> None:
         """Correct arity and dimensions let ``apply`` run."""
-        circuit, qudits, clbytes = build_targets([3, 2], [3, 2])
-        directive = DummyDirective([3, 2], num_clbytes=2, num_clbits=3)
-        directive.apply(circuit, qudits, clbytes)
+        circuit, qudits, cldigits = build_targets([3, 2], [3, 2])
+        directive = DummyDirective([3, 2], num_cldigits=2, num_clbits=3)
+        directive.apply(circuit, qudits, cldigits)
         assert len(directive.calls) == 1
         assert directive.calls[0][0] is circuit
         assert directive.calls[0][1] == tuple(qudits)
-        assert directive.calls[0][2] == tuple(clbytes)
+        assert directive.calls[0][2] == tuple(cldigits)
 
     def test_too_few_qudits_are_rejected(self) -> None:
         """The qudit arity must match exactly."""
@@ -255,25 +255,25 @@ class TestCheckTargets:
         ):
             directive.apply(circuit, qudits, [])
 
-    def test_clbyte_count_mismatch_is_rejected(self) -> None:
-        """The clbyte arity must match exactly."""
+    def test_cldigit_count_mismatch_is_rejected(self) -> None:
+        """The cldigit arity must match exactly."""
         circuit, qudits, _ = build_targets([3])
-        directive = DummyDirective([3], num_clbytes=1, num_clbits=2)
+        directive = DummyDirective([3], num_cldigits=1, num_clbits=2)
         with pytest.raises(
             QuditCircuitError,
-            match=r"'dummy' acts on 1 clbyte\(s\), got 0",
+            match=r"'dummy' acts on 1 cldigit\(s\), got 0",
         ):
             directive.apply(circuit, qudits, [])
 
-    def test_unexpected_clbytes_are_rejected(self) -> None:
-        """A directive without classical operands refuses clbytes."""
-        circuit, qudits, clbytes = build_targets([3], [3])
+    def test_unexpected_cldigits_are_rejected(self) -> None:
+        """A directive without classical operands refuses cldigits."""
+        circuit, qudits, cldigits = build_targets([3], [3])
         directive = DummyDirective([3])
         with pytest.raises(
             QuditCircuitError,
-            match=r"'dummy' acts on 0 clbyte\(s\), got 1",
+            match=r"'dummy' acts on 0 cldigit\(s\), got 1",
         ):
-            directive.apply(circuit, qudits, clbytes)
+            directive.apply(circuit, qudits, cldigits)
 
     def test_a_dimension_mismatch_names_the_position(self) -> None:
         """The failing operand position is reported."""
@@ -295,7 +295,7 @@ class TestQuditBarrier:
         assert barrier.name == "barrier"
         assert barrier.num_qudits == 2
         assert barrier.num_qubits == 3
-        assert barrier.num_clbytes == 0
+        assert barrier.num_cldigits == 0
         assert barrier.label is None
         assert barrier._directive is True
 
@@ -345,7 +345,7 @@ class TestQuditReset:
         assert reset.name == "reset"
         assert reset.num_qudits == 2
         assert reset.num_qubits == 3
-        assert reset.num_clbytes == 0
+        assert reset.num_cldigits == 0
 
     @pytest.mark.parametrize(
         "dims",
@@ -376,45 +376,45 @@ class TestQuditMeasure:
         dims: tuple[int, ...],
         num_bits: int,
     ) -> None:
-        """One clbyte per qudit and one clbit per encoding qubit."""
+        """One cldigit per qudit and one clbit per encoding qubit."""
         measure = QuditMeasure(dims)
         assert measure.name == "measure"
         assert measure.num_qudits == len(dims)
-        assert measure.num_clbytes == len(dims)
+        assert measure.num_cldigits == len(dims)
         assert measure.num_qubits == num_bits
         assert measure.num_clbits == num_bits
 
     def test_apply_pairs_qubits_and_clbits_in_matching_order(self) -> None:
-        """Qubit ``j`` of a qudit goes to clbit ``j`` of its clbyte."""
+        """Qubit ``j`` of a qudit goes to clbit ``j`` of its cldigit."""
         dims = (3, 2)
-        circuit, qudits, clbytes = build_targets(dims, dims)
-        QuditMeasure(dims).apply(circuit, qudits, clbytes)
+        circuit, qudits, cldigits = build_targets(dims, dims)
+        QuditMeasure(dims).apply(circuit, qudits, cldigits)
         assert operation_names(circuit) == ["measure"] * 3
         pairs = [(entry.qubits[0], entry.clbits[0]) for entry in circuit.data]
         assert pairs == [
-            (qudits[0].qubits[0], clbytes[0].clbits[0]),
-            (qudits[0].qubits[1], clbytes[0].clbits[1]),
-            (qudits[1].qubits[0], clbytes[1].clbits[0]),
+            (qudits[0].qubits[0], cldigits[0].clbits[0]),
+            (qudits[0].qubits[1], cldigits[0].clbits[1]),
+            (qudits[1].qubits[0], cldigits[1].clbits[0]),
         ]
 
-    def test_a_clbyte_that_is_too_narrow_is_rejected(self) -> None:
-        """A qutrit cannot be measured into a one-bit clbyte."""
-        circuit, qudits, clbytes = build_targets([3], [2])
+    def test_a_cldigit_that_is_too_narrow_is_rejected(self) -> None:
+        """A qutrit cannot be measured into a one-bit cldigit."""
+        circuit, qudits, cldigits = build_targets([3], [2])
         measure = QuditMeasure([3])
         with pytest.raises(
             QuditCircuitError,
             match=r"cannot measure a 3-level qudit \(2 qubit\(s\)\) into",
         ):
-            measure.apply(circuit, qudits, clbytes)
+            measure.apply(circuit, qudits, cldigits)
 
     def test_a_rejected_measurement_leaves_the_circuit_untouched(
         self,
     ) -> None:
         """Validation runs fully before anything is emitted."""
-        circuit, qudits, clbytes = build_targets([3, 3], [3, 2])
+        circuit, qudits, cldigits = build_targets([3, 3], [3, 2])
         measure = QuditMeasure([3, 3])
         with pytest.raises(QuditCircuitError, match="cannot measure"):
-            measure.apply(circuit, qudits, clbytes)
+            measure.apply(circuit, qudits, cldigits)
         assert len(circuit.data) == 0
 
 
@@ -429,7 +429,7 @@ class TestQuditInitializeLevels:
         assert list(directive.params) == [2, 1]
         assert directive.num_qudits == 2
         assert directive.num_qubits == 3
-        assert directive.num_clbytes == 0
+        assert directive.num_cldigits == 0
 
     @pytest.mark.parametrize(
         ("dim", "level"),
@@ -503,7 +503,7 @@ class TestQuditStatePreparation:
         assert directive.name == "initialize"
         assert directive.num_qudits == 1
         assert directive.num_qubits == 2
-        assert directive.num_clbytes == 0
+        assert directive.num_cldigits == 0
         assert directive.amplitudes.shape == (3,)
         assert_allclose(
             directive.amplitudes,

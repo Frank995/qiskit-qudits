@@ -1,4 +1,4 @@
-"""Classical bytes and their registers."""
+"""Classical digits and their registers."""
 
 from __future__ import annotations
 
@@ -18,21 +18,21 @@ if TYPE_CHECKING:
 
 
 @final
-class ClByte:
+class ClDigit:
     r"""A group of :class:`~qiskit.circuit.Clbit`.
 
     It holds one qudit outcome.
 
     A single classical bit cannot store the outcome of a measurement on
-    a :math:`d`-level qudit, so measurements target a *clbyte*: an
+    a :math:`d`-level qudit, so measurements target a *cldigit*: an
     ordered tuple of :math:`\lceil \log_2 d \rceil` clbits. Clbit ``j``
-    of the byte receives qubit ``j`` of the qudit, hence
+    of the digit receives qubit ``j`` of the qudit, hence
 
     .. math::
 
         \ell = \sum_j \mathrm{bit}_j \, 2^j ,
 
-    and in a backend counts key the byte's character slice is MSB-first,
+    and in a backend counts key the digit's character slice is MSB-first,
     so ``int(slice, 2)`` is directly the measured level. See
     :mod:`qiskit_qudits.utils.encoding` for the decoding helpers.
 
@@ -46,18 +46,18 @@ class ClByte:
         dim: IntLike,
         clbits: Sequence[Clbit] | None = None,
         *,
-        register: ClByteRegister | None = None,
+        register: ClDigitRegister | None = None,
         index: int | None = None,
     ) -> None:
-        r"""Create a clbyte.
+        r"""Create a cldigit.
 
         Args:
-            dim: Dimension of the qudit this byte is meant to
+            dim: Dimension of the qudit this digit is meant to
                 hold. Determines the width and enables leakage detection
                 when decoding.
             clbits: The clbits, least significant first. Fresh loose
                 clbits are created when ``None``.
-            register: Owning register, set by :class:`ClByteRegister`.
+            register: Owning register, set by :class:`ClDigitRegister`.
             index: Position inside ``register``.
 
         Raises:
@@ -76,23 +76,23 @@ class ClByte:
             self._clbits = tuple(clbits)
             if len(self._clbits) != width:
                 raise QuditCircuitError(
-                    f"a {self._dim}-level clbyte needs exactly {width} "
+                    f"a {self._dim}-level cldigit needs exactly {width} "
                     f"clbit(s), got {len(self._clbits)}.",
                 )
             if len(set(self._clbits)) != width:
-                raise QuditCircuitError("duplicate clbits in a single clbyte.")
+                raise QuditCircuitError("duplicate clbits in a single cldigit.")
 
-        self._register: ClByteRegister | None = register
+        self._register: ClDigitRegister | None = register
         self._index: int | None = index
 
     @property
     def dim(self) -> int:
-        """Dimension of the qudit this byte is sized for."""
+        """Dimension of the qudit this digit is sized for."""
         return self._dim
 
     @property
     def num_clbits(self) -> int:
-        """Number of clbits in this byte."""
+        """Number of clbits in this digit."""
         return len(self._clbits)
 
     @property
@@ -101,8 +101,8 @@ class ClByte:
         return self._clbits
 
     @property
-    def register(self) -> ClByteRegister | None:
-        """Owning register, or ``None`` for a loose byte."""
+    def register(self) -> ClDigitRegister | None:
+        """Owning register, or ``None`` for a loose digit."""
         return self._register
 
     @property
@@ -113,8 +113,8 @@ class ClByte:
     def __repr__(self) -> str:
         """Return a short, unambiguous representation."""
         if self._register is None or self._index is None:
-            return f"ClByte(d={self._dim})"
-        return f"ClByte({self._register.name}[{self._index}], d={self._dim})"
+            return f"ClDigit(d={self._dim})"
+        return f"ClDigit({self._register.name}[{self._index}], d={self._dim})"
 
     def __copy__(self) -> Self:
         """Return a copy of the object."""
@@ -125,8 +125,8 @@ class ClByte:
         return self
 
 
-class ClByteRegister:
-    r"""An ordered collection of :class:`ClByte`\ s.
+class ClDigitRegister:
+    r"""An ordered collection of :class:`ClDigit`\ s.
 
     Backed by a single :class:`~qiskit.circuit.ClassicalRegister` of
     :math:`\sum_k \lceil \log_2 d_k \rceil` clbits which is added to the
@@ -136,16 +136,16 @@ class ClByteRegister:
     Examples:
         .. code-block:: python
 
-            from qiskit_qudits.circuit.clbyte import ClByteRegister
+            from qiskit_qudits.circuit.cldigit import ClDigitRegister
 
-            out = ClByteRegister(2, 4, "out")       # 2 bytes x 2 clbits
-            mixed = ClByteRegister.from_dims([3, 16])
+            out = ClDigitRegister(2, 4, "out")       # 2 digits x 2 clbits
+            mixed = ClDigitRegister.from_dims([3, 16])
     """
 
     prefix: ClassVar[str] = "C"
     _instances_counter: ClassVar[Iterator[int]] = itertools.count()
 
-    __slots__ = ("_clbytes", "_creg", "_dims", "_name", "_widths")
+    __slots__ = ("_cldigits", "_creg", "_dims", "_name", "_widths")
 
     def __init__(
         self,
@@ -153,11 +153,11 @@ class ClByteRegister:
         dim: IntLike,
         name: str | None = None,
     ) -> None:
-        """Create a homogeneous clbyte register.
+        """Create a homogeneous cldigit register.
 
         Args:
-            size: Number of bytes.
-            dim: Dimension each byte is sized for.
+            size: Number of digits.
+            dim: Dimension each digit is sized for.
             name: Register name; auto-generated when ``None``.
 
         Raises:
@@ -173,15 +173,15 @@ class ClByteRegister:
         cls,
         dims: Sequence[IntLike],
         name: str | None = None,
-    ) -> ClByteRegister:
-        """Create a register whose bytes have individual widths.
+    ) -> ClDigitRegister:
+        """Create a register whose digits have individual widths.
 
         This is what :meth:`.QuditQuantumCircuit.measure_all` uses so
         that mixed-dimension circuits can be measured into a single
         register.
 
         Args:
-            dims: Dimension of each byte, in register order.
+            dims: Dimension of each digit, in register order.
             name: Register name; auto-generated when ``None``.
 
         Returns:
@@ -215,13 +215,13 @@ class ClByteRegister:
             name,
         )
 
-        clbytes: list[ClByte] = []
+        cldigits: list[ClDigit] = []
         offset = 0
         for index, (dim, width) in enumerate(
             zip(dims, self._widths, strict=True),
         ):
-            clbytes.append(
-                ClByte(
+            cldigits.append(
+                ClDigit(
                     dim,
                     self._creg[offset : offset + width],
                     register=self,
@@ -229,7 +229,7 @@ class ClByteRegister:
                 ),
             )
             offset += width
-        self._clbytes: tuple[ClByte, ...] = tuple(clbytes)
+        self._cldigits: tuple[ClDigit, ...] = tuple(cldigits)
 
     @property
     def name(self) -> str:
@@ -238,17 +238,17 @@ class ClByteRegister:
 
     @property
     def size(self) -> int:
-        """Number of bytes."""
-        return len(self._clbytes)
+        """Number of digits."""
+        return len(self._cldigits)
 
     @property
     def dims(self) -> tuple[int, ...]:
-        """Dimension of each byte."""
+        """Dimension of each digit."""
         return self._dims
 
     @property
     def widths(self) -> tuple[int, ...]:
-        """Clbit width of each byte."""
+        """Clbit width of each digit."""
         return self._widths
 
     @property
@@ -257,9 +257,9 @@ class ClByteRegister:
         return self._creg.size
 
     @property
-    def clbytes(self) -> tuple[ClByte, ...]:
-        """The bytes of this register, in order."""
-        return self._clbytes
+    def cldigits(self) -> tuple[ClDigit, ...]:
+        """The digits of this register, in order."""
+        return self._cldigits
 
     @property
     def creg(self) -> ClassicalRegister:
@@ -267,33 +267,33 @@ class ClByteRegister:
         return self._creg
 
     def __len__(self) -> int:
-        """Return the number of bytes."""
-        return len(self._clbytes)
+        """Return the number of digits."""
+        return len(self._cldigits)
 
-    def __iter__(self) -> Iterator[ClByte]:
-        """Iterate over the bytes in register order."""
-        return iter(self._clbytes)
+    def __iter__(self) -> Iterator[ClDigit]:
+        """Iterate over the digits in register order."""
+        return iter(self._cldigits)
 
-    def __contains__(self, clbyte: object) -> bool:
-        """Return whether ``clbyte`` belongs to this register."""
-        return any(clbyte is member for member in self._clbytes)
-
-    @overload
-    def __getitem__(self, key: IntLike) -> ClByte: ...
+    def __contains__(self, cldigit: object) -> bool:
+        """Return whether ``cldigit`` belongs to this register."""
+        return any(cldigit is member for member in self._cldigits)
 
     @overload
-    def __getitem__(self, key: slice) -> list[ClByte]: ...
+    def __getitem__(self, key: IntLike) -> ClDigit: ...
 
-    def __getitem__(self, key: IntLike | slice) -> ClByte | list[ClByte]:
+    @overload
+    def __getitem__(self, key: slice) -> list[ClDigit]: ...
+
+    def __getitem__(self, key: IntLike | slice) -> ClDigit | list[ClDigit]:
         """Index or slice the register."""
         if isinstance(key, slice):
-            return list(self._clbytes[key])
-        return self._clbytes[int(key)]
+            return list(self._cldigits[key])
+        return self._cldigits[int(key)]
 
     def __repr__(self) -> str:
         """Return a short, unambiguous representation."""
         return (
-            f"ClByteRegister({self.size}, dims={self._dims}, "
+            f"ClDigitRegister({self.size}, dims={self._dims}, "
             f"'{self._name}')"
         )
 
@@ -306,7 +306,7 @@ class ClByteRegister:
         return self
 
 
-#: Anything accepted where a clbyte (or several) is expected.
-ClByteSpecifier: TypeAlias = (
-    ClByte | ClByteRegister | IntLike | slice | Sequence[ClByte | IntLike]
+#: Anything accepted where a cldigit (or several) is expected.
+ClDigitSpecifier: TypeAlias = (
+    ClDigit | ClDigitRegister | IntLike | slice | Sequence[ClDigit | IntLike]
 )

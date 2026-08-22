@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from qiskit_qudits.circuit.clbyte import ClByteRegister
+from qiskit_qudits.circuit.cldigit import ClDigitRegister
 from qiskit_qudits.circuit.directives import (
     QuditBarrier,
     QuditInitializeLevels,
@@ -684,7 +684,7 @@ class TestReset:
 class TestMeasure:
     """The ``measure`` directive."""
 
-    def test_measure_pairs_qudits_and_clbytes_one_to_one(self) -> None:
+    def test_measure_pairs_qudits_and_cldigits_one_to_one(self) -> None:
         """Operand ``i`` of each list is paired with operand ``i``."""
         circuit = QuditQuantumCircuit(2, 2, dim=3)
 
@@ -697,20 +697,20 @@ class TestMeasure:
             circuit.qudits[0],
             circuit.qudits[1],
         ]
-        assert [entry.clbytes[0] for entry in result] == [
-            circuit.clbytes[1],
-            circuit.clbytes[0],
+        assert [entry.cldigits[0] for entry in result] == [
+            circuit.cldigits[1],
+            circuit.cldigits[0],
         ]
 
     def test_measure_rejects_mismatched_operand_counts(self) -> None:
-        """Two qudits cannot share a single clbyte."""
+        """Two qudits cannot share a single cldigit."""
         circuit = QuditQuantumCircuit(2, 2, dim=3)
 
-        with pytest.raises(QuditCircuitError, match="one clbyte per qudit"):
+        with pytest.raises(QuditCircuitError, match="one cldigit per qudit"):
             circuit.measure([0, 1], 0)
 
     def test_encoded_measurements_are_little_endian(self) -> None:
-        """Qubit ``j`` of a qudit lands on clbit ``j`` of its byte."""
+        """Qubit ``j`` of a qudit lands on clbit ``j`` of its digit."""
         circuit = QuditQuantumCircuit(1, 1, dim=3)
 
         circuit.measure(0, 0)
@@ -723,7 +723,7 @@ class TestMeasure:
             # Rust-backed `CircuitData`, so compare by value, not by
             # identity.
             assert entry.qubits[0] == circuit.qudits[0].qubits[index]
-            assert entry.clbits[0] == circuit.clbytes[0].clbits[index]
+            assert entry.clbits[0] == circuit.cldigits[0].clbits[index]
 
 
 class TestMeasureAll:
@@ -738,7 +738,7 @@ class TestMeasureAll:
         register = circuit.cbregs[-1]
         assert register.name == "meas"
         assert register.dims == MIXED_DIMS
-        assert circuit.clbyte_widths == MIXED_WIDTHS
+        assert circuit.cldigit_widths == MIXED_WIDTHS
         assert circuit.num_clbits == sum(MIXED_WIDTHS)
 
     def test_measure_all_inserts_a_barrier_before_measuring(self) -> None:
@@ -758,7 +758,7 @@ class TestMeasureAll:
         """A taken ``'meas'`` name is suffixed."""
         circuit = QuditQuantumCircuit(
             QuditRegister(1, 3, "q"),
-            ClByteRegister(1, 3, "meas"),
+            ClDigitRegister(1, 3, "meas"),
         )
 
         circuit.measure_all()
@@ -768,24 +768,24 @@ class TestMeasureAll:
             "meas0",
         ]
 
-    def test_measure_all_can_reuse_the_existing_clbytes(self) -> None:
-        """``add_bytes=False`` measures into clbyte ``i``."""
+    def test_measure_all_can_reuse_the_existing_cldigits(self) -> None:
+        """``add_digits=False`` measures into cldigit ``i``."""
         circuit = QuditQuantumCircuit(2, 3, dim=3)
 
-        circuit.measure_all(add_bytes=False)
+        circuit.measure_all(add_digits=False)
 
         assert len(circuit.cbregs) == 1
-        assert circuit.num_clbytes == 3
-        assert [entry.clbytes[0] for entry in circuit.data[1:]] == list(
-            circuit.clbytes[:2],
+        assert circuit.num_cldigits == 3
+        assert [entry.cldigits[0] for entry in circuit.data[1:]] == list(
+            circuit.cldigits[:2],
         )
 
-    def test_measure_all_requires_enough_clbytes(self) -> None:
-        """Reusing clbytes needs at least one byte per qudit."""
+    def test_measure_all_requires_enough_cldigits(self) -> None:
+        """Reusing cldigits needs at least one digit per qudit."""
         circuit = QuditQuantumCircuit(2, 1, dim=3)
 
         with pytest.raises(QuditCircuitError, match="at least the number"):
-            circuit.measure_all(add_bytes=False)
+            circuit.measure_all(add_digits=False)
 
     def test_measure_all_out_of_place_leaves_the_original(self) -> None:
         """``inplace=False`` returns a new, measured circuit."""
@@ -796,9 +796,9 @@ class TestMeasureAll:
         assert measured is not None
         assert measured is not circuit
         assert len(circuit.data) == 0
-        assert circuit.num_clbytes == 0
+        assert circuit.num_cldigits == 0
         assert len(measured.data) == 3
-        assert measured.num_clbytes == 2
+        assert measured.num_cldigits == 2
 
 
 class TestInitializeLevels:

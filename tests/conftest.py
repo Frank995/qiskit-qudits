@@ -76,13 +76,13 @@ def _reset_register_counters() -> Iterator[None]:
     """
     import itertools
 
-    from qiskit_qudits.circuit.clbyte import ClByteRegister
+    from qiskit_qudits.circuit.cldigit import ClDigitRegister
     from qiskit_qudits.circuit.quantumcircuit import QuditQuantumCircuit
     from qiskit_qudits.circuit.qudit import QuditRegister as _QuditRegister
 
     saved: list[tuple[type, object]] = [
         (_QuditRegister, _QuditRegister._instances_counter),
-        (ClByteRegister, ClByteRegister._instances_counter),
+        (ClDigitRegister, ClDigitRegister._instances_counter),
         (
             QuditQuantumCircuit,
             QuditQuantumCircuit._instances_counter,

@@ -8,14 +8,14 @@ from typing import TYPE_CHECKING, TypeAlias, final
 if TYPE_CHECKING:
     from qiskit.circuit import Instruction
 
-    from qiskit_qudits.circuit.clbyte import ClByte
+    from qiskit_qudits.circuit.cldigit import ClDigit
     from qiskit_qudits.circuit.qudit import Qudit
 
 
 @final
 @dataclass(frozen=True, slots=True)
 class QuditCircuitInstruction:
-    """An operation together with the qudits and clbytes it acts on.
+    """An operation together with the qudits and cldigits it acts on.
 
     This is the qudit analogue of
     :class:`~qiskit.circuit.CircuitInstruction`. It is immutable; use
@@ -28,12 +28,12 @@ class QuditCircuitInstruction:
             encoding qubits) or a
             :class:`~qiskit_qudits.circuit.directives.QuditDirective`.
         qudits: The target qudits, in operand order.
-        clbytes: The target clbytes, in operand order.
+        cldigits: The target cldigits, in operand order.
     """
 
     operation: Instruction
     qudits: tuple[Qudit, ...] = ()
-    clbytes: tuple[ClByte, ...] = ()
+    cldigits: tuple[ClDigit, ...] = ()
 
     @property
     def name(self) -> str:
@@ -46,9 +46,9 @@ class QuditCircuitInstruction:
         return len(self.qudits)
 
     @property
-    def num_clbytes(self) -> int:
-        """Number of target clbytes."""
-        return len(self.clbytes)
+    def num_cldigits(self) -> int:
+        """Number of target cldigits."""
+        return len(self.cldigits)
 
     @property
     def dims(self) -> tuple[int, ...]:
@@ -60,7 +60,7 @@ class QuditCircuitInstruction:
         *,
         operation: Instruction | None = None,
         qudits: tuple[Qudit, ...] | None = None,
-        clbytes: tuple[ClByte, ...] | None = None,
+        cldigits: tuple[ClDigit, ...] | None = None,
     ) -> QuditCircuitInstruction:
         """Return a copy with the given fields replaced.
 
@@ -68,7 +68,7 @@ class QuditCircuitInstruction:
             operation: New operation, or ``None`` to keep the
                 current one.
             qudits: New target qudits, or ``None`` to keep them.
-            clbytes: New target clbytes, or ``None`` to keep them.
+            cldigits: New target cldigits, or ``None`` to keep them.
 
         Returns:
             The derived instruction.
@@ -77,14 +77,14 @@ class QuditCircuitInstruction:
             self,
             operation=self.operation if operation is None else operation,
             qudits=self.qudits if qudits is None else qudits,
-            clbytes=self.clbytes if clbytes is None else clbytes,
+            cldigits=self.cldigits if cldigits is None else cldigits,
         )
 
     def __repr__(self) -> str:
         """Return a short, unambiguous representation."""
         return (
             f"QuditCircuitInstruction({self.name}, "
-            f"qudits={self.qudits}, clbytes={self.clbytes})"
+            f"qudits={self.qudits}, cldigits={self.cldigits})"
         )
 
 

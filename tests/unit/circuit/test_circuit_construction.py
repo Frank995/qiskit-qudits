@@ -23,7 +23,7 @@ from qiskit.circuit import (
 from qiskit.circuit.exceptions import CircuitError
 from qiskit.circuit.library import RZGate
 
-from qiskit_qudits.circuit.clbyte import ClByte, ClByteRegister
+from qiskit_qudits.circuit.cldigit import ClDigit, ClDigitRegister
 from qiskit_qudits.circuit.exceptions import QuditCircuitError
 from qiskit_qudits.circuit.instruction import QuditCircuitInstruction
 from qiskit_qudits.circuit.quantumcircuit import QuditQuantumCircuit
@@ -40,10 +40,10 @@ MIXED_WIDTHS = (1, 2, 3)
 
 
 def mixed_circuit() -> QuditQuantumCircuit:
-    """Return a heterogeneous circuit with matching clbytes."""
+    """Return a heterogeneous circuit with matching cldigits."""
     return QuditQuantumCircuit(
         QuditRegister.from_dims(MIXED_DIMS, "mix"),
-        ClByteRegister.from_dims(MIXED_DIMS, "out"),
+        ClDigitRegister.from_dims(MIXED_DIMS, "out"),
     )
 
 
@@ -57,16 +57,16 @@ class TestConstructorForms:
         assert circuit.num_qudits == 3
         assert circuit.dims == (4, 4, 4)
         assert [reg.name for reg in circuit.qdregs] == ["qd"]
-        assert circuit.num_clbytes == 0
+        assert circuit.num_cldigits == 0
         assert circuit.num_qubits == 6
 
     def test_integer_form_creates_both_registers(self) -> None:
-        """``(3, 3, dim=4)`` also creates the clbyte register."""
+        """``(3, 3, dim=4)`` also creates the cldigit register."""
         circuit = QuditQuantumCircuit(3, 3, dim=4)
 
         assert [reg.name for reg in circuit.qdregs] == ["qd"]
         assert [reg.name for reg in circuit.cbregs] == ["cb"]
-        assert circuit.num_clbytes == 3
+        assert circuit.num_cldigits == 3
         assert circuit.num_clbits == 6
 
     def test_auto_created_registers_back_the_encoded_circuit(self) -> None:
@@ -79,21 +79,21 @@ class TestConstructorForms:
     def test_register_form_keeps_the_given_objects(self) -> None:
         """Registers are stored by identity, in argument order."""
         qdreg = QuditRegister(2, 3, "alice")
-        cbreg = ClByteRegister(2, 3, "bob")
+        cbreg = ClDigitRegister(2, 3, "bob")
 
         circuit = QuditQuantumCircuit(qdreg, cbreg)
 
         assert circuit.qdregs == (qdreg,)
         assert circuit.cbregs == (cbreg,)
         assert circuit.qudits == qdreg.qudits
-        assert circuit.clbytes == cbreg.clbytes
+        assert circuit.cldigits == cbreg.cldigits
 
     def test_no_argument_form_is_empty(self) -> None:
         """``QuditQuantumCircuit()`` has no wires and no data."""
         circuit = QuditQuantumCircuit()
 
         assert circuit.num_qudits == 0
-        assert circuit.num_clbytes == 0
+        assert circuit.num_cldigits == 0
         assert circuit.qdregs == ()
         assert circuit.cbregs == ()
         assert len(circuit) == 0
@@ -104,7 +104,7 @@ class TestConstructorForms:
             QuditQuantumCircuit(3)
 
     def test_more_than_two_integers_are_rejected(self) -> None:
-        """At most ``(qudits, clbytes)`` may be given as integers."""
+        """At most ``(qudits, cldigits)`` may be given as integers."""
         with pytest.raises(QuditCircuitError, match="at most 2 integer"):
             QuditQuantumCircuit(1, 1, 1, dim=2)
 
@@ -122,7 +122,7 @@ class TestConstructorForms:
     @pytest.mark.parametrize(
         ("sizes", "attribute"),
         [((0,), "qdregs"), ((2, 0), "cbregs")],
-        ids=["no-qudits", "no-clbytes"],
+        ids=["no-qudits", "no-cldigits"],
     )
     def test_a_zero_size_creates_no_register(
         self,
@@ -254,7 +254,7 @@ class TestAddRegister:
         """The backing registers land on the encoded circuit."""
         circuit = QuditQuantumCircuit()
         qdreg = QuditRegister(2, 3, "alice")
-        cbreg = ClByteRegister(2, 3, "bob")
+        cbreg = ClDigitRegister(2, 3, "bob")
 
         circuit.add_register(qdreg, cbreg)
 
@@ -277,11 +277,11 @@ class TestAddRegister:
             circuit.add_register(register)
 
     def test_a_name_clash_across_kinds_is_rejected(self) -> None:
-        """Qudit and clbyte register names share one namespace."""
+        """Qudit and cldigit register names share one namespace."""
         circuit = QuditQuantumCircuit(QuditRegister(1, 3, "shared"))
 
         with pytest.raises(QuditCircuitError, match="already exists"):
-            circuit.add_register(ClByteRegister(1, 3, "shared"))
+            circuit.add_register(ClDigitRegister(1, 3, "shared"))
 
     def test_an_unsupported_register_type_is_rejected(self) -> None:
         """Plain Qiskit registers are not qudit registers."""
@@ -297,7 +297,7 @@ class TestAddRegister:
 
 
 class TestLooseObjects:
-    """``add_qudits`` and ``add_clbytes``."""
+    """``add_qudits`` and ``add_cldigits``."""
 
     def test_loose_qudits_add_their_qubits_to_the_encoding(self) -> None:
         """Encoding qubits become loose qubits of the encoding."""
@@ -311,16 +311,16 @@ class TestLooseObjects:
         assert circuit.qubits == list(qudit.qubits)
         assert circuit.circuit.qregs == []
 
-    def test_loose_clbytes_add_their_clbits_to_the_encoding(self) -> None:
+    def test_loose_cldigits_add_their_clbits_to_the_encoding(self) -> None:
         """Clbits become loose clbits of the encoded circuit."""
         circuit = QuditQuantumCircuit()
-        clbyte = ClByte(3)
+        cldigit = ClDigit(3)
 
-        circuit.add_clbytes([clbyte])
+        circuit.add_cldigits([cldigit])
 
-        assert circuit.clbytes == (clbyte,)
+        assert circuit.cldigits == (cldigit,)
         assert circuit.cbregs == ()
-        assert circuit.clbits == list(clbyte.clbits)
+        assert circuit.clbits == list(cldigit.clbits)
 
     def test_add_qudits_rejects_a_foreign_type(self) -> None:
         """Only :class:`Qudit` objects are accepted."""
@@ -329,12 +329,12 @@ class TestLooseObjects:
         with pytest.raises(QuditCircuitError, match="expected a Qudit"):
             circuit.add_qudits([Qubit()])
 
-    def test_add_clbytes_rejects_a_foreign_type(self) -> None:
-        """Only :class:`ClByte` objects are accepted."""
+    def test_add_cldigits_rejects_a_foreign_type(self) -> None:
+        """Only :class:`ClDigit` objects are accepted."""
         circuit = QuditQuantumCircuit()
 
-        with pytest.raises(QuditCircuitError, match="expected a ClByte"):
-            circuit.add_clbytes([Clbit()])
+        with pytest.raises(QuditCircuitError, match="expected a ClDigit"):
+            circuit.add_cldigits([Clbit()])
 
     def test_adding_the_same_qudit_twice_is_rejected(self) -> None:
         """A qudit cannot be registered twice."""
@@ -348,29 +348,29 @@ class TestLooseObjects:
         with pytest.raises(CircuitError, match="already in circuit"):
             circuit.add_qudits([qudit])
 
-    def test_adding_the_same_clbyte_twice_is_rejected(self) -> None:
-        """A clbyte cannot be registered twice."""
-        clbyte = ClByte(3)
+    def test_adding_the_same_cldigit_twice_is_rejected(self) -> None:
+        """A cldigit cannot be registered twice."""
+        cldigit = ClDigit(3)
         circuit = QuditQuantumCircuit()
-        circuit.add_clbytes([clbyte])
+        circuit.add_cldigits([cldigit])
 
         with pytest.raises(CircuitError, match="already in circuit"):
-            circuit.add_clbytes([clbyte])
+            circuit.add_cldigits([cldigit])
 
 
 class TestLookup:
-    """``has_register``, ``find_qudit`` and ``find_clbyte``."""
+    """``has_register``, ``find_qudit`` and ``find_cldigit``."""
 
     def test_has_register_compares_by_identity(self) -> None:
         """Only the very same register object is recognised."""
         qdreg = QuditRegister(1, 3, "alice")
-        cbreg = ClByteRegister(1, 3, "bob")
+        cbreg = ClDigitRegister(1, 3, "bob")
         circuit = QuditQuantumCircuit(qdreg, cbreg)
 
         assert circuit.has_register(qdreg)
         assert circuit.has_register(cbreg)
         assert not circuit.has_register(QuditRegister(1, 3, "alice2"))
-        assert not circuit.has_register(ClByteRegister(1, 3, "bob2"))
+        assert not circuit.has_register(ClDigitRegister(1, 3, "bob2"))
 
     def test_find_qudit_returns_the_circuit_wide_index(self) -> None:
         """Indices follow the order in which qudits were added."""
@@ -380,11 +380,11 @@ class TestLookup:
 
         assert indices == [0, 1, 2]
 
-    def test_find_clbyte_returns_the_circuit_wide_index(self) -> None:
-        """Clbyte indices follow the clbit order."""
+    def test_find_cldigit_returns_the_circuit_wide_index(self) -> None:
+        """Cldigit indices follow the clbit order."""
         circuit = mixed_circuit()
 
-        indices = [circuit.find_clbyte(byte) for byte in circuit.clbytes]
+        indices = [circuit.find_cldigit(digit) for digit in circuit.cldigits]
 
         assert indices == [0, 1, 2]
 
@@ -395,33 +395,33 @@ class TestLookup:
         with pytest.raises(QuditCircuitError, match="not in this circuit"):
             circuit.find_qudit(Qudit(3))
 
-    def test_find_clbyte_rejects_a_foreign_clbyte(self) -> None:
-        """A clbyte from another circuit has no index here."""
+    def test_find_cldigit_rejects_a_foreign_cldigit(self) -> None:
+        """A cldigit from another circuit has no index here."""
         circuit = QuditQuantumCircuit(1, 1, dim=3)
 
         with pytest.raises(QuditCircuitError, match="not in this circuit"):
-            circuit.find_clbyte(ClByte(3))
+            circuit.find_cldigit(ClDigit(3))
 
 
 class TestProperties:
     """The read-only view of the circuit's wires and data."""
 
-    def test_qudit_and_clbyte_collections_are_tuples(self) -> None:
+    def test_qudit_and_cldigit_collections_are_tuples(self) -> None:
         """The public collections are immutable snapshots."""
         circuit = QuditQuantumCircuit(2, 2, dim=3)
 
         assert isinstance(circuit.qudits, tuple)
-        assert isinstance(circuit.clbytes, tuple)
+        assert isinstance(circuit.cldigits, tuple)
         assert isinstance(circuit.qdregs, tuple)
         assert isinstance(circuit.cbregs, tuple)
         assert isinstance(circuit.data, tuple)
 
     def test_wire_counts(self) -> None:
-        """Qudit/clbyte counts and their encoded counterparts."""
+        """Qudit/cldigit counts and their encoded counterparts."""
         circuit = QuditQuantumCircuit(2, 3, dim=3)
 
         assert circuit.num_qudits == 2
-        assert circuit.num_clbytes == 3
+        assert circuit.num_cldigits == 3
         assert circuit.num_qubits == 4
         assert circuit.num_clbits == 6
 
@@ -436,7 +436,7 @@ class TestProperties:
             qubit for qudit in circuit.qudits for qubit in qudit.qubits
         ]
         assert circuit.clbits == [
-            clbit for clbyte in circuit.clbytes for clbit in clbyte.clbits
+            clbit for cldigit in circuit.cldigits for clbit in cldigit.clbits
         ]
 
     def test_dims_lists_every_qudit_dimension(self) -> None:
@@ -458,12 +458,12 @@ class TestProperties:
         with pytest.raises(QuditCircuitError, match="heterogeneous"):
             _ = circuit.dim
 
-    def test_clbyte_layout_properties(self) -> None:
-        """Clbyte widths and dimensions are in clbit order."""
+    def test_cldigit_layout_properties(self) -> None:
+        """Cldigit widths and dimensions are in clbit order."""
         circuit = mixed_circuit()
 
-        assert circuit.clbyte_dims == MIXED_DIMS
-        assert circuit.clbyte_widths == MIXED_WIDTHS
+        assert circuit.cldigit_dims == MIXED_DIMS
+        assert circuit.cldigit_widths == MIXED_WIDTHS
 
     def test_len_and_getitem_expose_the_instruction_log(self) -> None:
         """``len`` and indexing address ``data`` directly."""
@@ -517,7 +517,7 @@ class TestMixedDimensions:
         circuit = mixed_circuit()
 
         assert circuit.find_qudit(circuit.qudits[2]) == 2
-        assert circuit.find_clbyte(circuit.clbytes[2]) == 2
+        assert circuit.find_cldigit(circuit.cldigits[2]) == 2
         assert circuit.qudits[2].qubits == tuple(circuit.qubits[3:])
 
     def test_mixed_circuit_appends_per_dimension_gates(self) -> None:

@@ -15,7 +15,7 @@ endian** ordering is used:
   dropping the spaces yields one global, right-to-left clbit string.
 
 A useful corollary: the slice of a counts key belonging to a single
-:class:`~qiskit_qudits.circuit.ClByte` is MSB-first, so
+:class:`~qiskit_qudits.circuit.ClDigit` is MSB-first, so
 ``int(slice, 2)`` *is* the measured level.
 """
 
@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 #: (i.e. ``value >= dim``), which is a signature of leakage.
 InvalidPolicy: TypeAlias = Literal["keep", "drop", "raise"]
 
-#: A decoded shot: one level per :class:`.ClByte`, in clbit-index order.
+#: A decoded shot: one level per :class:`.ClDigit`, in clbit-index order.
 Levels: TypeAlias = tuple[int, ...]
 
 _DEFAULT_ATOL = 1e-8
@@ -94,13 +94,13 @@ def _split_bitstring(
     bitstring: str,
     widths: Sequence[int],
 ) -> tuple[str, ...]:
-    """Split a backend bit-string into per-:class:`.ClByte` chunks.
+    """Split a backend bit-string into per-:class:`.ClDigit` chunks.
 
     Args:
         bitstring: A counts key, e.g. ``'0110 11'``. Whitespace
             (Qiskit's register separator) is ignored.
-        widths: Number of clbits of each byte, in **clbit-index order**
-            (byte 0 first).
+        widths: Number of clbits of each digit, in **clbit-index order**
+            (digit 0 first).
 
     Returns:
         One MSB-first chunk per width, in the same order as ``widths``.
@@ -138,19 +138,19 @@ def decode_bitstring(
     *,
     on_invalid: InvalidPolicy = "keep",
 ) -> Levels | None:
-    """Decode a single counts key into one level per byte.
+    """Decode a single counts key into one level per digit.
 
     Args:
         bitstring: A counts key.
-        widths: Clbit width of each byte, in clbit-index order.
-        dims: Optional number of levels of each byte, used to detect
+        widths: Clbit width of each digit, in clbit-index order.
+        dims: Optional number of levels of each digit, used to detect
             leakage out of the qudit subspace.
         on_invalid: Behaviour when a decoded value is ``>= dims[i]``:
             ``'keep'`` returns it unchanged, ``'drop'`` returns ``None``
             and ``'raise'`` raises.
 
     Returns:
-        The decoded levels in byte order, or ``None`` when the shot is
+        The decoded levels in digit order, or ``None`` when the shot is
         discarded because of ``on_invalid='drop'``.
 
     Raises:
@@ -166,13 +166,13 @@ def decode_bitstring(
 
     if len(dims) != len(levels):
         raise ValueError(
-            f"got {len(dims)} dimension(s) for {len(levels)} byte(s).",
+            f"got {len(dims)} dimension(s) for {len(levels)} digit(s).",
         )
     for index, (level, dim) in enumerate(zip(levels, dims, strict=True)):
         if level >= int(dim):
             if on_invalid == "raise":
                 raise ValueError(
-                    f"byte {index} decoded to level {level}, which is outside "
+                    f"digit {index} decoded to level {level}, which is outside "
                     f"the {int(dim)}-level qudit subspace (leakage?).",
                 )
             if on_invalid == "drop":
@@ -193,12 +193,12 @@ def decode_counts(
         counts: Mapping from bit-string to number of shots, as returned
             by ``result.get_counts()`` or ``SamplerResult``-style
             containers.
-        widths: Clbit width of each byte, in clbit-index order.
-        dims: Optional levels per byte, for leakage detection.
+        widths: Clbit width of each digit, in clbit-index order.
+        dims: Optional levels per digit, for leakage detection.
         on_invalid: See :func:`decode_bitstring`.
 
     Returns:
-        Mapping from a tuple of levels (**byte order**, byte 0 first) to
+        Mapping from a tuple of levels (**digit order**, digit 0 first) to
         the aggregated number of shots. Use :func:`format_levels` to
         get a Qiskit-ordered, human-readable key.
     """
@@ -218,12 +218,12 @@ def decode_counts(
 def format_levels(levels: Iterable[int], *, separator: str = " ") -> str:
     """Render decoded levels the way Qiskit renders bit-strings.
 
-    The **leftmost** token is the **last** byte, mirroring Qiskit's
+    The **leftmost** token is the **last** digit, mirroring Qiskit's
     little-endian string convention, and tokens are separated so the
     result is never ambiguous for :math:`d > 10`.
 
     Args:
-        levels: Levels in byte order (byte 0 first).
+        levels: Levels in digit order (digit 0 first).
         separator: Token separator.
 
     Returns:

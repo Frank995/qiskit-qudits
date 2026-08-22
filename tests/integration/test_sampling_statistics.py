@@ -486,7 +486,7 @@ class TestMeasurementIsBasisFaithful:
 
 
 class TestShotBookkeeping:
-    """Sanity on the shot and clbyte accounting."""
+    """Sanity on the shot and cldigit accounting."""
 
     def test_decoded_counts_sum_to_the_requested_shots(
         self,
@@ -515,22 +515,22 @@ class TestShotBookkeeping:
         assert sum(decoded.values()) == shots
         assert len(decoded) <= len(raw)
 
-    def test_every_decoded_key_has_one_entry_per_clbyte(
+    def test_every_decoded_key_has_one_entry_per_cldigit(
         self,
         shots: int,
         seed: int,
     ) -> None:
-        """A decoded key is one level per clbyte, in clbyte order."""
+        """A decoded key is one level per cldigit, in cldigit order."""
         circuit = _bookkeeping_circuit()
 
         observed = sample_levels(circuit, shots=shots, seed=seed)
 
-        assert circuit.num_clbytes == 3
-        assert circuit.clbyte_dims == (2, 3, 4)
-        assert circuit.clbyte_widths == (1, 2, 2)
+        assert circuit.num_cldigits == 3
+        assert circuit.cldigit_dims == (2, 3, 4)
+        assert circuit.cldigit_widths == (1, 2, 2)
         for key in observed:
-            assert len(key) == circuit.num_clbytes
-            for level, dim in zip(key, circuit.clbyte_dims, strict=True):
+            assert len(key) == circuit.num_cldigits
+            for level, dim in zip(key, circuit.cldigit_dims, strict=True):
                 assert 0 <= level < dim, f"{key} escapes {circuit.dims}"
 
     def test_the_expected_joint_outcomes_all_show_up(

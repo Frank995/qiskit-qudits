@@ -30,7 +30,7 @@ from qiskit.circuit import (
     Reset,
 )
 
-from qiskit_qudits.circuit.clbyte import ClByte, ClByteRegister
+from qiskit_qudits.circuit.cldigit import ClDigit, ClDigitRegister
 from qiskit_qudits.circuit.directives import (
     QuditBarrier,
     QuditDirective,
@@ -77,7 +77,7 @@ if TYPE_CHECKING:
 
     from qiskit.circuit.parametertable import ParameterView
 
-    from qiskit_qudits.circuit.clbyte import ClByteSpecifier
+    from qiskit_qudits.circuit.cldigit import ClDigitSpecifier
     from qiskit_qudits.circuit.instruction import QuditInstructionSet
     from qiskit_qudits.circuit.qudit import QuditSpecifier
     from qiskit_qudits.gates.base.controlledgate import QuditControlledGate
@@ -87,13 +87,13 @@ if TYPE_CHECKING:
 
 #: Which rendering of the circuit to produce.
 #:
-#: * ``'ideal'`` - one wire per qudit, one classical wire per clbyte;
+#: * ``'ideal'`` - one wire per qudit, one classical wire per cldigit;
 #: * ``'real'`` - the encoded circuit, qudit gates over qubit wires;
 #: * ``'decomposed'`` - the encoded circuit, unrolled one level.
 CircuitView: TypeAlias = Literal["ideal", "real", "decomposed"]
 
 #: A register accepted by :meth:`QuditQuantumCircuit.add_register`.
-QuditCircuitRegister: TypeAlias = QuditRegister | ClByteRegister
+QuditCircuitRegister: TypeAlias = QuditRegister | ClDigitRegister
 
 #: Level specification accepted by
 #: :meth:`QuditQuantumCircuit.initialize_levels`.
@@ -181,7 +181,7 @@ class QuditQuantumCircuit:
 
     * the **ideal** view (:meth:`to_ideal_circuit`,
       ``draw(view='ideal')``) renders one wire per qudit and one
-      classical wire per clbyte, as if the hardware were natively
+      classical wire per cldigit, as if the hardware were natively
       qudit-based;
     * the **real** view (:attr:`circuit`, ``draw(view='real')``)
       renders the encoded circuit, with each qudit gate as one box
@@ -194,9 +194,9 @@ class QuditQuantumCircuit:
     Everything is little-endian, exactly like Qiskit:
 
     * qubit ``j`` of a qudit carries weight :math:`2^j`;
-    * clbit ``j`` of a :class:`.ClByte` receives qubit ``j``;
+    * clbit ``j`` of a :class:`.ClDigit` receives qubit ``j``;
     * in a counts key, clbit ``i`` sits at position ``len - 1 - i``,
-      so :meth:`decode_counts` consumes the clbytes right-to-left;
+      so :meth:`decode_counts` consumes the cldigits right-to-left;
     * level strings passed to :meth:`initialize_levels` are read the
       same way (rightmost token = first target qudit), while
       ``Sequence[int]`` arguments are in plain target order.
@@ -215,7 +215,7 @@ class QuditQuantumCircuit:
 
             from qiskit_qudits.circuit import QuditQuantumCircuit
 
-            # 2 qutrits + 2 clbytes sized for a qutrit outcome
+            # 2 qutrits + 2 cldigits sized for a qutrit outcome
             qc = QuditQuantumCircuit(2, 2, dim=3)
             qc.initialize_levels("2 0")   # qudit 0 -> |0>, 1 -> |2>
             qc.h(0)
@@ -245,9 +245,9 @@ class QuditQuantumCircuit:
 
         Args:
             regs: Either registers (:class:`.QuditRegister` and/or
-                :class:`.ClByteRegister`) or up to two integers. With
+                :class:`.ClDigitRegister`) or up to two integers. With
                 integers, the first is the number of qudits and the
-                second the number of clbytes; ``dim`` is then
+                second the number of cldigits; ``dim`` is then
                 mandatory and the auto-created registers are named
                 ``'qd'`` and ``'cb'`` (the qudit counterparts of
                 Qiskit's ``'q'`` and ``'c'``).
@@ -265,7 +265,7 @@ class QuditQuantumCircuit:
             .. code-block:: python
 
                 QuditQuantumCircuit(3, dim=4)         # 3 ququarts
-                QuditQuantumCircuit(3, 3, dim=4)      # + 3 clbytes
+                QuditQuantumCircuit(3, 3, dim=4)      # + 3 cldigits
                 QuditQuantumCircuit(QuditRegister(2, 3, "alice"))
         """
         if name is not None and not name:
@@ -280,10 +280,10 @@ class QuditQuantumCircuit:
 
         self._qudits: list[Qudit] = []
         self._qdregs: list[QuditRegister] = []
-        self._clbytes: list[ClByte] = []
-        self._cbregs: list[ClByteRegister] = []
+        self._cldigits: list[ClDigit] = []
+        self._cbregs: list[ClDigitRegister] = []
         self._qudit_indices: dict[Qudit, int] = {}
-        self._clbyte_indices: dict[ClByte, int] = {}
+        self._cldigit_indices: dict[ClDigit, int] = {}
         self._register_names: set[str] = set()
         self._data: list[QuditCircuitInstruction] = []
 
@@ -323,13 +323,13 @@ class QuditQuantumCircuit:
             return ()
 
         if all(
-            isinstance(reg, (QuditRegister, ClByteRegister)) for reg in regs
+            isinstance(reg, (QuditRegister, ClDigitRegister)) for reg in regs
         ):
             # `cast`-free narrowing: the check above is exhaustive.
             return tuple(
                 reg
                 for reg in regs
-                if isinstance(reg, (QuditRegister, ClByteRegister))
+                if isinstance(reg, (QuditRegister, ClDigitRegister))
             )
 
         sizes: list[int] = []
@@ -349,7 +349,7 @@ class QuditQuantumCircuit:
         if len(sizes) > QuditQuantumCircuit._MAX_INT_REGISTERS:
             raise QuditCircuitError(
                 "expected at most 2 integer arguments (qudits, "
-                f"clbytes), got {len(sizes)}.",
+                f"cldigits), got {len(sizes)}.",
             )
 
         created: list[QuditCircuitRegister] = []
@@ -359,7 +359,7 @@ class QuditQuantumCircuit:
             len(sizes) == QuditQuantumCircuit._MAX_INT_REGISTERS
             and sizes[1] > 0
         ):
-            created.append(ClByteRegister(sizes[1], dim, "cb"))
+            created.append(ClDigitRegister(sizes[1], dim, "cb"))
         return tuple(created)
 
     # ---------------------------------------------------------------- #
@@ -431,17 +431,17 @@ class QuditQuantumCircuit:
         return tuple(self._qdregs)
 
     @property
-    def clbytes(self) -> tuple[ClByte, ...]:
-        r"""All :class:`.ClByte`\ s, in the order they were added.
+    def cldigits(self) -> tuple[ClDigit, ...]:
+        r"""All :class:`.ClDigit`\ s, in the order they were added.
 
         The order coincides with increasing clbit index, which is what
         :meth:`decode_counts` relies on.
         """
-        return tuple(self._clbytes)
+        return tuple(self._cldigits)
 
     @property
-    def cbregs(self) -> tuple[ClByteRegister, ...]:
-        r"""All :class:`.ClByteRegister`\ s, in insertion order."""
+    def cbregs(self) -> tuple[ClDigitRegister, ...]:
+        r"""All :class:`.ClDigitRegister`\ s, in insertion order."""
         return tuple(self._cbregs)
 
     @property
@@ -470,9 +470,9 @@ class QuditQuantumCircuit:
         return len(self._qudits)
 
     @property
-    def num_clbytes(self) -> int:
-        """Number of clbytes."""
-        return len(self._clbytes)
+    def num_cldigits(self) -> int:
+        """Number of cldigits."""
+        return len(self._cldigits)
 
     @property
     def num_qubits(self) -> int:
@@ -506,14 +506,14 @@ class QuditQuantumCircuit:
         return next(iter(unique), 0)
 
     @property
-    def clbyte_widths(self) -> tuple[int, ...]:
-        """Clbit width of each clbyte, in clbit-index order."""
-        return tuple(clbyte.num_clbits for clbyte in self._clbytes)
+    def cldigit_widths(self) -> tuple[int, ...]:
+        """Clbit width of each cldigit, in clbit-index order."""
+        return tuple(cldigit.num_clbits for cldigit in self._cldigits)
 
     @property
-    def clbyte_dims(self) -> tuple[int, ...]:
-        """Dimension each clbyte is sized for, in clbit-index order."""
-        return tuple(clbyte.dim for clbyte in self._clbytes)
+    def cldigit_dims(self) -> tuple[int, ...]:
+        """Dimension each cldigit is sized for, in clbit-index order."""
+        return tuple(cldigit.dim for cldigit in self._cldigits)
 
     @property
     def parameters(self) -> ParameterView[Any]:
@@ -537,7 +537,7 @@ class QuditQuantumCircuit:
     # Adding data objects
     # ---------------------------------------------------------------- #
     def add_register(self, *regs: QuditCircuitRegister) -> None:
-        """Add qudit and/or clbyte registers to the circuit.
+        """Add qudit and/or cldigit registers to the circuit.
 
         The register's backing quantum/classical register is added to
         the encoded circuit, so its name must be unique across *both*
@@ -568,7 +568,7 @@ class QuditQuantumCircuit:
                 self._register_qudits(register.qudits)
             elif isinstance(  # pyright: ignore[reportUnnecessaryIsInstance]
                 register,
-                ClByteRegister,
+                ClDigitRegister,
             ):
                 if any(existing is register for existing in self._cbregs):
                     raise QuditCircuitError(
@@ -577,10 +577,10 @@ class QuditQuantumCircuit:
                     )
                 self._circuit.add_register(register.creg)
                 self._cbregs.append(register)
-                self._register_clbytes(register.clbytes)
+                self._register_cldigits(register.cldigits)
             else:
                 raise QuditCircuitError(
-                    "expected a QuditRegister or a ClByteRegister, got "
+                    "expected a QuditRegister or a ClDigitRegister, got "
                     f"{type(register).__name__}.",
                 )
             self._register_names.add(register.name)
@@ -607,26 +607,26 @@ class QuditQuantumCircuit:
             self._circuit.add_bits(qudit.qubits)
         self._register_qudits(qudits)
 
-    def add_clbytes(self, clbytes: Sequence[ClByte]) -> None:
-        """Add loose (registerless) clbytes.
+    def add_cldigits(self, cldigits: Sequence[ClDigit]) -> None:
+        """Add loose (registerless) cldigits.
 
         Args:
-            clbytes: The clbytes to add. Their clbits are added to the
+            cldigits: The cldigits to add. Their clbits are added to the
                 encoded circuit as loose clbits.
 
         Raises:
-            QuditCircuitError: If a clbyte is already present.
+            QuditCircuitError: If a cldigit is already present.
         """
-        for clbyte in clbytes:
+        for cldigit in cldigits:
             if not isinstance(  # pyright: ignore[reportUnnecessaryIsInstance]
-                clbyte,
-                ClByte,
+                cldigit,
+                ClDigit,
             ):
                 raise QuditCircuitError(
-                    f"expected a ClByte, got {type(clbyte).__name__}.",
+                    f"expected a ClDigit, got {type(cldigit).__name__}.",
                 )
-            self._circuit.add_bits(clbyte.clbits)
-        self._register_clbytes(clbytes)
+            self._circuit.add_bits(cldigit.clbits)
+        self._register_cldigits(cldigits)
 
     def _register_qudits(self, qudits: Sequence[Qudit]) -> None:
         """Record ``qudits`` in the circuit's index tables.
@@ -645,22 +645,22 @@ class QuditQuantumCircuit:
             self._qudit_indices[qudit] = len(self._qudits)
             self._qudits.append(qudit)
 
-    def _register_clbytes(self, clbytes: Sequence[ClByte]) -> None:
-        """Record ``clbytes`` in the circuit's index tables.
+    def _register_cldigits(self, cldigits: Sequence[ClDigit]) -> None:
+        """Record ``cldigits`` in the circuit's index tables.
 
         Args:
-            clbytes: The clbytes to record, in order.
+            cldigits: The cldigits to record, in order.
 
         Raises:
-            QuditCircuitError: If a clbyte is already present.
+            QuditCircuitError: If a cldigit is already present.
         """
-        for clbyte in clbytes:
-            if clbyte in self._clbyte_indices:
+        for cldigit in cldigits:
+            if cldigit in self._cldigit_indices:
                 raise QuditCircuitError(
-                    f"{clbyte!r} is already in this circuit.",
+                    f"{cldigit!r} is already in this circuit.",
                 )
-            self._clbyte_indices[clbyte] = len(self._clbytes)
-            self._clbytes.append(clbyte)
+            self._cldigit_indices[cldigit] = len(self._cldigits)
+            self._cldigits.append(cldigit)
 
     def has_register(self, register: QuditCircuitRegister) -> bool:
         """Return whether ``register`` belongs to this circuit.
@@ -694,23 +694,23 @@ class QuditQuantumCircuit:
                 f"{qudit!r} is not in this circuit.",
             ) from exc
 
-    def find_clbyte(self, clbyte: ClByte) -> int:
-        """Return the circuit-wide index of ``clbyte``.
+    def find_cldigit(self, cldigit: ClDigit) -> int:
+        """Return the circuit-wide index of ``cldigit``.
 
         Args:
-            clbyte: The clbyte to locate.
+            cldigit: The cldigit to locate.
 
         Returns:
-            Its index in :attr:`clbytes`.
+            Its index in :attr:`cldigits`.
 
         Raises:
-            QuditCircuitError: If the clbyte is not in this circuit.
+            QuditCircuitError: If the cldigit is not in this circuit.
         """
         try:
-            return self._clbyte_indices[clbyte]
+            return self._cldigit_indices[cldigit]
         except KeyError as exc:
             raise QuditCircuitError(
-                f"{clbyte!r} is not in this circuit.",
+                f"{cldigit!r} is not in this circuit.",
             ) from exc
 
     # ---------------------------------------------------------------- #
@@ -769,28 +769,28 @@ class QuditQuantumCircuit:
             return resolved
         raise QuditCircuitError(f"invalid qudit specifier {specifier!r}.")
 
-    def _clbyte_argument_conversion(
+    def _cldigit_argument_conversion(
         self,
-        specifier: ClByteSpecifier,
-    ) -> list[ClByte]:
-        """Resolve a :data:`.ClByteSpecifier` into concrete clbytes.
+        specifier: ClDigitSpecifier,
+    ) -> list[ClDigit]:
+        """Resolve a :data:`.ClDigitSpecifier` into concrete cldigits.
 
         Args:
-            specifier: A clbyte, a register, an index, a slice, or a
-                sequence of clbytes/indices.
+            specifier: A cldigit, a register, an index, a slice, or a
+                sequence of cldigits/indices.
 
         Returns:
-            The resolved clbytes, in the order implied by the
+            The resolved cldigits, in the order implied by the
             specifier.
 
         Raises:
             QuditCircuitError: On an unsupported specifier, an
-                out-of-range index, or a foreign clbyte.
+                out-of-range index, or a foreign cldigit.
         """
-        if isinstance(specifier, ClByte):
-            self.find_clbyte(specifier)  # membership check
+        if isinstance(specifier, ClDigit):
+            self.find_cldigit(specifier)  # membership check
             return [specifier]
-        if isinstance(specifier, ClByteRegister):
+        if isinstance(specifier, ClDigitRegister):
             if not self.has_register(specifier):
                 raise QuditCircuitError(
                     f"register '{specifier.name}' is not in this circuit.",
@@ -798,29 +798,29 @@ class QuditQuantumCircuit:
             return list(specifier)
         if is_integral(specifier):
             index = int(specifier)
-            if not -self.num_clbytes <= index < self.num_clbytes:
+            if not -self.num_cldigits <= index < self.num_cldigits:
                 raise QuditCircuitError(
-                    f"clbyte index {index} is out of range for a circuit "
-                    f"with {self.num_clbytes} clbyte(s).",
+                    f"cldigit index {index} is out of range for a circuit "
+                    f"with {self.num_cldigits} cldigit(s).",
                 )
-            return [self._clbytes[index]]
+            return [self._cldigits[index]]
         if isinstance(specifier, slice):
-            return list(self._clbytes[specifier])
+            return list(self._cldigits[specifier])
         if isinstance(specifier, str):
             raise QuditCircuitError(
-                "strings are not valid clbyte specifiers.",
+                "strings are not valid cldigit specifiers.",
             )
         if isinstance(specifier, Sequence):
-            resolved: list[ClByte] = []
+            resolved: list[ClDigit] = []
             for item in specifier:
-                if isinstance(item, ClByte) or is_integral(item):
-                    resolved.extend(self._clbyte_argument_conversion(item))
+                if isinstance(item, ClDigit) or is_integral(item):
+                    resolved.extend(self._cldigit_argument_conversion(item))
                 else:
                     raise QuditCircuitError(
-                        f"invalid clbyte specifier element {item!r}.",
+                        f"invalid cldigit specifier element {item!r}.",
                     )
             return resolved
-        raise QuditCircuitError(f"invalid clbyte specifier {specifier!r}.")
+        raise QuditCircuitError(f"invalid cldigit specifier {specifier!r}.")
 
     @staticmethod
     def _check_duplicates(objects: Sequence[object], kind: str) -> None:
@@ -843,7 +843,7 @@ class QuditQuantumCircuit:
         self,
         operation: Instruction,
         qudits: QuditSpecifier | None = None,
-        clbytes: ClByteSpecifier | None = None,
+        cldigits: ClDigitSpecifier | None = None,
         *,
         copy: bool = True,
     ) -> QuditCircuitInstruction:
@@ -863,7 +863,7 @@ class QuditQuantumCircuit:
                 matches the encoding width of the targets (useful for
                 raw unitaries).
             qudits: The target qudits.
-            clbytes: The target clbytes.
+            cldigits: The target cldigits.
             copy: Copy the operation when it carries parameters, so
                 later mutation of the argument cannot affect this
                 circuit. Mirrors Qiskit's ``append(copy=...)``.
@@ -888,15 +888,15 @@ class QuditQuantumCircuit:
                 () if qudits is None else qudits,
             ),
         )
-        clbyte_targets = tuple(
-            self._clbyte_argument_conversion(
-                () if clbytes is None else clbytes,
+        cldigit_targets = tuple(
+            self._cldigit_argument_conversion(
+                () if cldigits is None else cldigits,
             ),
         )
         self._check_duplicates(qudit_targets, "qudit")
-        self._check_duplicates(clbyte_targets, "clbyte")
+        self._check_duplicates(cldigit_targets, "cldigit")
 
-        self._validate_operands(operation, qudit_targets, clbyte_targets)
+        self._validate_operands(operation, qudit_targets, cldigit_targets)
 
         if copy and operation.params:
             operation = operation.copy()
@@ -904,12 +904,12 @@ class QuditQuantumCircuit:
         # Mutate the encoded circuit first: if the expansion fails,
         # nothing is recorded in `_data` and the two views stay
         # consistent.
-        self._apply_operation(operation, qudit_targets, clbyte_targets)
+        self._apply_operation(operation, qudit_targets, cldigit_targets)
 
         instruction = QuditCircuitInstruction(
             operation,
             qudit_targets,
-            clbyte_targets,
+            cldigit_targets,
         )
         self._data.append(instruction)
         return instruction
@@ -918,14 +918,14 @@ class QuditQuantumCircuit:
         self,
         operation: Instruction,
         qudits: Sequence[Qudit],
-        clbytes: Sequence[ClByte],
+        cldigits: Sequence[ClDigit],
     ) -> None:
         """Check that ``operation`` matches its operands.
 
         Args:
             operation: The operation about to be appended.
             qudits: Resolved target qudits.
-            clbytes: Resolved target clbytes.
+            cldigits: Resolved target cldigits.
 
         Raises:
             QuditCircuitError: On any mismatch.
@@ -955,17 +955,17 @@ class QuditQuantumCircuit:
             )
 
         if isinstance(operation, QuditDirective):
-            if operation.num_clbytes != len(clbytes):
+            if operation.num_cldigits != len(cldigits):
                 raise QuditCircuitError(
-                    f"'{operation.name}' acts on {operation.num_clbytes} "
-                    f"clbyte(s), got {len(clbytes)}.",
+                    f"'{operation.name}' acts on {operation.num_cldigits} "
+                    f"cldigit(s), got {len(cldigits)}.",
                 )
         else:
-            expected_clbits = sum(clbyte.num_clbits for clbyte in clbytes)
+            expected_clbits = sum(cldigit.num_clbits for cldigit in cldigits)
             if operation.num_clbits != expected_clbits:
                 raise QuditCircuitError(
                     f"'{operation.name}' acts on {operation.num_clbits} "
-                    f"clbit(s) but the target clbytes provide "
+                    f"clbit(s) but the target cldigits provide "
                     f"{expected_clbits}.",
                 )
 
@@ -1010,21 +1010,21 @@ class QuditQuantumCircuit:
         self,
         operation: Instruction,
         qudits: Sequence[Qudit],
-        clbytes: Sequence[ClByte],
+        cldigits: Sequence[ClDigit],
     ) -> None:
         """Expand one qudit operation onto the encoded circuit.
 
         Args:
             operation: The operation to expand.
             qudits: Resolved target qudits.
-            clbytes: Resolved target clbytes.
+            cldigits: Resolved target cldigits.
         """
         if isinstance(operation, QuditDirective):
-            operation.apply(self._circuit, qudits, clbytes)
+            operation.apply(self._circuit, qudits, cldigits)
             return
 
         qubits = [qubit for qudit in qudits for qubit in qudit.qubits]
-        clbits = [clbit for clbyte in clbytes for clbit in clbyte.clbits]
+        clbits = [clbit for cldigit in cldigits for clbit in cldigit.clbits]
         self._circuit.append(operation, qubits, clbits, copy=False)
 
     # ---------------------------------------------------------------- #
@@ -1762,19 +1762,19 @@ class QuditQuantumCircuit:
     def measure(
         self,
         qudit: QuditSpecifier,
-        clbyte: ClByteSpecifier,
+        cldigit: ClDigitSpecifier,
     ) -> QuditInstructionSet:
-        """Measure qudits into clbytes in the computational basis.
+        """Measure qudits into cldigits in the computational basis.
 
         Qubit ``j`` of each qudit is measured into clbit ``j`` of the
-        paired clbyte, so the stored bits are the little-endian binary
+        paired cldigit, so the stored bits are the little-endian binary
         expansion of the measured level. Use :meth:`decode_counts` (or
         :func:`~qiskit_qudits.utils.encoding.decode_counts`) to turn
         raw bit-strings back into levels.
 
         Args:
             qudit: The qudit(s) to measure.
-            clbyte: The clbyte(s) to store the outcome(s) in. Must
+            cldigit: The cldigit(s) to store the outcome(s) in. Must
                 have the same length as ``qudit`` (one-to-one, as in
                 Qiskit).
 
@@ -1783,31 +1783,31 @@ class QuditQuantumCircuit:
 
         Raises:
             QuditCircuitError: If the operand counts differ or a
-                clbyte is too narrow for its qudit.
+                cldigit is too narrow for its qudit.
 
         Examples:
             .. code-block:: python
 
-                qc.measure([0, 1], [0, 1])   # qudit i -> clbyte i
+                qc.measure([0, 1], [0, 1])   # qudit i -> cldigit i
         """
         qudit_targets = self._qudit_argument_conversion(qudit)
-        clbyte_targets = self._clbyte_argument_conversion(clbyte)
-        if len(qudit_targets) != len(clbyte_targets):
+        cldigit_targets = self._cldigit_argument_conversion(cldigit)
+        if len(qudit_targets) != len(cldigit_targets):
             raise QuditCircuitError(
-                "measure needs one clbyte per qudit, got "
+                "measure needs one cldigit per qudit, got "
                 f"{len(qudit_targets)} qudit(s) and "
-                f"{len(clbyte_targets)} clbyte(s).",
+                f"{len(cldigit_targets)} cldigit(s).",
             )
         return tuple(
             self.append(
                 QuditMeasure([qudit_target.dim]),
                 (qudit_target,),
-                (clbyte_target,),
+                (cldigit_target,),
                 copy=False,
             )
-            for qudit_target, clbyte_target in zip(
+            for qudit_target, cldigit_target in zip(
                 qudit_targets,
-                clbyte_targets,
+                cldigit_targets,
                 strict=True,
             )
         )
@@ -1816,42 +1816,42 @@ class QuditQuantumCircuit:
         self,
         *,
         inplace: bool = True,
-        add_bytes: bool = True,
+        add_digits: bool = True,
     ) -> QuditQuantumCircuit | None:
         """Measure every qudit, adding a ``'meas'`` register.
 
         Args:
             inplace: Modify this circuit (default) or return a new
                 one.
-            add_bytes: Create a new :class:`.ClByteRegister` sized for
+            add_digits: Create a new :class:`.ClDigitRegister` sized for
                 the circuit's dimensions (heterogeneous circuits are
-                handled via :meth:`.ClByteRegister.from_dims`). When
-                ``False``, the existing clbytes are used, clbyte ``i``
+                handled via :meth:`.ClDigitRegister.from_dims`). When
+                ``False``, the existing cldigits are used, cldigit ``i``
                 receiving qudit ``i``.
 
         Returns:
             ``None`` when ``inplace=True``, otherwise the new circuit.
 
         Raises:
-            QuditCircuitError: If ``add_bytes=False`` and there are
-                fewer clbytes than qudits.
+            QuditCircuitError: If ``add_digits=False`` and there are
+                fewer cldigits than qudits.
         """
         circuit = self if inplace else self.copy()
 
-        if add_bytes:
-            register = ClByteRegister.from_dims(
+        if add_digits:
+            register = ClDigitRegister.from_dims(
                 circuit.dims,
                 circuit._unique_register_name("meas"),  # noqa: SLF001
             )
             circuit.add_register(register)
             targets = list(register)
         else:
-            if circuit.num_clbytes < circuit.num_qudits:
+            if circuit.num_cldigits < circuit.num_qudits:
                 raise QuditCircuitError(
-                    "the number of clbytes must be at least the number "
+                    "the number of cldigits must be at least the number "
                     "of qudits.",
                 )
-            targets = list(circuit.clbytes[: circuit.num_qudits])
+            targets = list(circuit.cldigits[: circuit.num_qudits])
 
         circuit.barrier()
         circuit.measure(list(circuit.qudits), targets)
@@ -2070,7 +2070,7 @@ class QuditQuantumCircuit:
         The result is a presentation-only
         :class:`~qiskit.circuit.QuantumCircuit` with one
         :class:`~qiskit.circuit.Qubit` per qudit and one
-        :class:`~qiskit.circuit.Clbit` per clbyte, where each qudit
+        :class:`~qiskit.circuit.Clbit` per cldigit, where each qudit
         instruction becomes a single opaque
         :class:`~qiskit.circuit.Instruction`. It is meant for drawing
         and inspection - it is *not* executable, because a qubit wire
@@ -2083,7 +2083,7 @@ class QuditQuantumCircuit:
 
         Returns:
             The ideal-view circuit, with registers named exactly like
-            the qudit/clbyte registers of this circuit.
+            the qudit/cldigit registers of this circuit.
         """
         ideal = QuantumCircuit(
             name=self._name,
@@ -2107,24 +2107,24 @@ class QuditQuantumCircuit:
                 for index, member in enumerate(qdreg):
                     qubit_of[member] = qreg[index]
 
-        clbit_of: dict[ClByte, Clbit] = {}
+        clbit_of: dict[ClDigit, Clbit] = {}
         seen_cbregs: set[int] = set()
-        for clbyte in self._clbytes:
-            cbreg = clbyte.register
+        for cldigit in self._cldigits:
+            cbreg = cldigit.register
             if cbreg is None:
                 clbit_wire = Clbit()
                 ideal.add_bits([clbit_wire])
-                clbit_of[clbyte] = clbit_wire
+                clbit_of[cldigit] = clbit_wire
             elif id(cbreg) not in seen_cbregs:
                 seen_cbregs.add(id(cbreg))
                 creg = ClassicalRegister(cbreg.size, cbreg.name)
                 ideal.add_register(creg)
-                for index, clbyte_member in enumerate(cbreg):
-                    clbit_of[clbyte_member] = creg[index]
+                for index, cldigit_member in enumerate(cbreg):
+                    clbit_of[cldigit_member] = creg[index]
 
         for instruction in self._data:
             qargs = [qubit_of[qudit] for qudit in instruction.qudits]
-            cargs = [clbit_of[clbyte] for clbyte in instruction.clbytes]
+            cargs = [clbit_of[cldigit] for cldigit in instruction.cldigits]
             ideal.append(
                 self._ideal_operation(
                     instruction,
@@ -2154,7 +2154,7 @@ class QuditQuantumCircuit:
         """
         operation = instruction.operation
         num_qudits = instruction.num_qudits
-        num_clbytes = instruction.num_clbytes
+        num_cldigits = instruction.num_cldigits
 
         # Native Qiskit operations render much better than
         # placeholders.
@@ -2189,7 +2189,7 @@ class QuditQuantumCircuit:
         return Instruction(
             operation.name,
             num_qudits,
-            num_clbytes,
+            num_cldigits,
             [],
             label=label,
         )
@@ -2285,7 +2285,7 @@ class QuditQuantumCircuit:
         """Return a short, unambiguous representation."""
         return (
             f"<QuditQuantumCircuit '{self._name}': {self.num_qudits} "
-            f"qudit(s) dims={self.dims}, {self.num_clbytes} clbyte(s), "
+            f"qudit(s) dims={self.dims}, {self.num_cldigits} cldigit(s), "
             f"{len(self._data)} instruction(s), {self.num_qubits} "
             "qubit(s)>"
         )
@@ -2305,7 +2305,7 @@ class QuditQuantumCircuit:
     def copy_empty_like(self, name: str | None = None) -> QuditQuantumCircuit:
         """Return a circuit with the same wires but no instructions.
 
-        Registers, loose qudits/clbytes, global phase and metadata are
+        Registers, loose qudits/cldigits, global phase and metadata are
         carried over. Bit objects are **shared** (exactly like
         Qiskit's
         :meth:`~qiskit.circuit.QuantumCircuit.copy_empty_like`), which
@@ -2330,10 +2330,10 @@ class QuditQuantumCircuit:
                 out.add_register(qdreg)
 
         added.clear()
-        for clbyte in self._clbytes:
-            cbreg = clbyte.register
+        for cldigit in self._cldigits:
+            cbreg = cldigit.register
             if cbreg is None:
-                out.add_clbytes([clbyte])
+                out.add_cldigits([cldigit])
             elif id(cbreg) not in added:
                 added.add(id(cbreg))
                 out.add_register(cbreg)
@@ -2360,7 +2360,7 @@ class QuditQuantumCircuit:
             out.append(
                 instruction.operation,
                 instruction.qudits,
-                instruction.clbytes,
+                instruction.cldigits,
                 copy=False,
             )
         return out
@@ -2374,10 +2374,10 @@ class QuditQuantumCircuit:
         self._name = other._name
         self._qudits = other._qudits
         self._qdregs = other._qdregs
-        self._clbytes = other._clbytes
+        self._cldigits = other._cldigits
         self._cbregs = other._cbregs
         self._qudit_indices = other._qudit_indices
-        self._clbyte_indices = other._clbyte_indices
+        self._cldigit_indices = other._cldigit_indices
         self._register_names = other._register_names
         self._data = other._data
         self._circuit = other._circuit
@@ -2386,7 +2386,7 @@ class QuditQuantumCircuit:
         self,
         other: QuditQuantumCircuit,
         qudits: QuditSpecifier | None = None,
-        clbytes: ClByteSpecifier | None = None,
+        cldigits: ClDigitSpecifier | None = None,
         *,
         front: bool = False,
         inplace: bool = False,
@@ -2399,7 +2399,7 @@ class QuditQuantumCircuit:
                 circuit) **in order**, and dimensions must agree
                 pairwise.
             qudits: Where to map ``other``'s qudits.
-            clbytes: Where to map ``other``'s clbytes.
+            cldigits: Where to map ``other``'s cldigits.
             front: Inline ``other`` *before* the existing
                 instructions. This rebuilds the encoded circuit.
             inplace: Modify this circuit instead of returning a new
@@ -2417,20 +2417,20 @@ class QuditQuantumCircuit:
             if qudits is None
             else self._qudit_argument_conversion(qudits)
         )
-        mapped_clbytes = (
-            self._clbytes[: other.num_clbytes]
-            if clbytes is None
-            else self._clbyte_argument_conversion(clbytes)
+        mapped_cldigits = (
+            self._cldigits[: other.num_cldigits]
+            if cldigits is None
+            else self._cldigit_argument_conversion(cldigits)
         )
         if len(mapped_qudits) != other.num_qudits:
             raise QuditCircuitError(
                 f"cannot compose a circuit with {other.num_qudits} "
                 f"qudit(s) onto {len(mapped_qudits)} target(s).",
             )
-        if len(mapped_clbytes) != other.num_clbytes:
+        if len(mapped_cldigits) != other.num_cldigits:
             raise QuditCircuitError(
-                f"cannot compose a circuit with {other.num_clbytes} "
-                f"clbyte(s) onto {len(mapped_clbytes)} target(s).",
+                f"cannot compose a circuit with {other.num_cldigits} "
+                f"cldigit(s) onto {len(mapped_cldigits)} target(s).",
             )
         for source, target in zip(other.qudits, mapped_qudits, strict=True):
             if source.dim != target.dim:
@@ -2447,11 +2447,11 @@ class QuditQuantumCircuit:
                 strict=True,
             )
         }
-        clbyte_map = {
+        cldigit_map = {
             id(source): target
             for source, target in zip(
-                other.clbytes,
-                mapped_clbytes,
+                other.cldigits,
+                mapped_cldigits,
                 strict=True,
             )
         }
@@ -2473,8 +2473,8 @@ class QuditQuantumCircuit:
                         qudit_map[id(qudit)] for qudit in instruction.qudits
                     ),
                     tuple(
-                        clbyte_map[id(clbyte)]
-                        for clbyte in instruction.clbytes
+                        cldigit_map[id(cldigit)]
+                        for cldigit in instruction.cldigits
                     ),
                     copy=False,
                 )
@@ -2486,7 +2486,7 @@ class QuditQuantumCircuit:
                 rebuilt.append(
                     instruction.operation,
                     instruction.qudits,
-                    instruction.clbytes,
+                    instruction.cldigits,
                     copy=False,
                 )
             rebuilt.global_phase = self.global_phase + other.global_phase
@@ -2528,7 +2528,7 @@ class QuditQuantumCircuit:
             out.append(
                 cast("Instruction", operation.inverse()),
                 instruction.qudits,
-                instruction.clbytes,
+                instruction.cldigits,
                 copy=False,
             )
         return out
@@ -2565,7 +2565,7 @@ class QuditQuantumCircuit:
     ) -> int:
         """Return the qudit-level circuit depth.
 
-        Wires are qudits and clbytes; barriers act as synchronisation
+        Wires are qudits and cldigits; barriers act as synchronisation
         points without adding depth (Qiskit semantics).
 
         Args:
@@ -2576,12 +2576,12 @@ class QuditQuantumCircuit:
             The critical-path length in qudit operations.
         """
         depths: dict[int, int] = {
-            id(wire): 0 for wire in (*self._qudits, *self._clbytes)
+            id(wire): 0 for wire in (*self._qudits, *self._cldigits)
         }
         for instruction in self._data:
             wires = [
                 id(wire)
-                for wire in (*instruction.qudits, *instruction.clbytes)
+                for wire in (*instruction.qudits, *instruction.cldigits)
             ]
             if not wires:
                 continue
@@ -2593,8 +2593,8 @@ class QuditQuantumCircuit:
         return max(depths.values(), default=0)
 
     def width(self) -> int:
-        """Return the number of qudits plus clbytes."""
-        return self.num_qudits + self.num_clbytes
+        """Return the number of qudits plus cldigits."""
+        return self.num_qudits + self.num_cldigits
 
     def count_ops(self) -> OrderedDict[str, int]:
         """Count qudit-level operations by name.
@@ -2618,7 +2618,7 @@ class QuditQuantumCircuit:
         *,
         on_invalid: InvalidPolicy = "keep",
     ) -> Levels | None:
-        """Decode one counts key using this circuit's clbyte layout.
+        """Decode one counts key using this circuit's cldigit layout.
 
         Args:
             bitstring: A counts key, e.g. ``'01 10'``.
@@ -2627,13 +2627,13 @@ class QuditQuantumCircuit:
                 :func:`~qiskit_qudits.utils.encoding.decode_bitstring`).
 
         Returns:
-            One level per clbyte, in clbyte order, or ``None`` if the
+            One level per cldigit, in cldigit order, or ``None`` if the
             shot was dropped.
         """
         return decode_bitstring(
             bitstring,
-            self.clbyte_widths,
-            self.clbyte_dims,
+            self.cldigit_widths,
+            self.cldigit_dims,
             on_invalid=on_invalid,
         )
 
@@ -2643,14 +2643,14 @@ class QuditQuantumCircuit:
         *,
         on_invalid: InvalidPolicy = "keep",
     ) -> dict[Levels, int]:
-        """Decode a counts mapping using this circuit's clbyte layout.
+        """Decode a counts mapping using this circuit's cldigit layout.
 
         Args:
             counts: Mapping from bit-string to shots.
             on_invalid: What to do with leaked outcomes.
 
         Returns:
-            Mapping from a tuple of levels (clbyte order, byte 0
+            Mapping from a tuple of levels (cldigit order, digit 0
             first) to shots. Use
             :func:`~qiskit_qudits.utils.encoding.format_levels` for a
             Qiskit-ordered display string.
@@ -2664,7 +2664,7 @@ class QuditQuantumCircuit:
         """
         return decode_counts(
             counts,
-            self.clbyte_widths,
-            self.clbyte_dims,
+            self.cldigit_widths,
+            self.cldigit_dims,
             on_invalid=on_invalid,
         )

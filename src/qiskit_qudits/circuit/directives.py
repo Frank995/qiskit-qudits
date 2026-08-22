@@ -40,7 +40,7 @@ if TYPE_CHECKING:
     import numpy as np
     from qiskit.circuit.quantumcircuit import QuantumCircuit
 
-    from qiskit_qudits.circuit.clbyte import ClByte
+    from qiskit_qudits.circuit.cldigit import ClDigit
     from qiskit_qudits.circuit.qudit import Qudit
     from qiskit_qudits.utils.consts import IntLike, VectorLike
 
@@ -49,7 +49,7 @@ class QuditDirective(Instruction, ABC):
     r"""Base class for non-unitary qudit-level operations.
 
     Subclasses must implement :meth:`apply`, which receives the encoded
-    circuit together with the *resolved* target qudits and clbytes and
+    circuit together with the *resolved* target qudits and cldigits and
     is responsible for emitting the equivalent primitive Qiskit
     operations.
 
@@ -63,7 +63,7 @@ class QuditDirective(Instruction, ABC):
         name: str,
         dims: Sequence[IntLike],
         *,
-        num_clbytes: int = 0,
+        num_cldigits: int = 0,
         num_clbits: int = 0,
         params: Sequence[object] = (),
         label: str | None = None,
@@ -73,7 +73,7 @@ class QuditDirective(Instruction, ABC):
         Args:
             name: Operation name, e.g. ``'measure'``.
             dims: Dimension of each target qudit, in target order.
-            num_clbytes: Number of target clbytes.
+            num_cldigits: Number of target cldigits.
             num_clbits: Total number of target clbits.
             params: Values stored in :attr:`params` for introspection.
             label: Optional display label.
@@ -83,7 +83,7 @@ class QuditDirective(Instruction, ABC):
         self._widths: tuple[int, ...] = tuple(
             qubits_per_qudit(dim) for dim in self._dims
         )
-        self._num_clbytes: int = num_clbytes
+        self._num_cldigits: int = num_cldigits
         super().__init__(
             name,
             sum(self._widths),
@@ -108,20 +108,20 @@ class QuditDirective(Instruction, ABC):
         return len(self._dims)
 
     @property
-    def num_clbytes(self) -> int:
-        """Number of target clbytes."""
-        return self._num_clbytes
+    def num_cldigits(self) -> int:
+        """Number of target cldigits."""
+        return self._num_cldigits
 
     def _check_targets(
         self,
         qudits: Sequence[Qudit],
-        clbytes: Sequence[ClByte],
+        cldigits: Sequence[ClDigit],
     ) -> None:
         """Validate the arity and dimensions of the resolved targets.
 
         Args:
             qudits: Resolved target qudits.
-            clbytes: Resolved target clbytes.
+            cldigits: Resolved target cldigits.
 
         Raises:
             QuditCircuitError: On an arity or dimension mismatch.
@@ -131,10 +131,10 @@ class QuditDirective(Instruction, ABC):
                 f"'{self.name}' acts on {self.num_qudits} qudit(s), "
                 f"got {len(qudits)}.",
             )
-        if len(clbytes) != self.num_clbytes:
+        if len(cldigits) != self.num_cldigits:
             raise QuditCircuitError(
-                f"'{self.name}' acts on {self.num_clbytes} clbyte(s), "
-                f"got {len(clbytes)}.",
+                f"'{self.name}' acts on {self.num_cldigits} cldigit(s), "
+                f"got {len(cldigits)}.",
             )
         for position, (qudit, dim) in enumerate(
             zip(qudits, self._dims, strict=True),
@@ -150,14 +150,14 @@ class QuditDirective(Instruction, ABC):
         self,
         circuit: QuantumCircuit,
         qudits: Sequence[Qudit],
-        clbytes: Sequence[ClByte],
+        cldigits: Sequence[ClDigit],
     ) -> None:
         """Emit the encoded implementation of this directive.
 
         Args:
             circuit: The encoded circuit to mutate.
             qudits: Resolved target qudits, in target order.
-            clbytes: Resolved target clbytes, in target order.
+            cldigits: Resolved target cldigits, in target order.
 
         Raises:
             NotImplementedError: If not overridden.
@@ -192,17 +192,17 @@ class QuditBarrier(QuditDirective):
         self,
         circuit: QuantumCircuit,
         qudits: Sequence[Qudit],
-        clbytes: Sequence[ClByte],
+        cldigits: Sequence[ClDigit],
     ) -> None:
         """Apply one Qiskit barrier over all encoding qubits.
 
         Args:
             circuit: The encoded circuit to mutate.
             qudits: Resolved target qudits, in target order.
-            clbytes: Resolved target clbytes, in target order.
+            cldigits: Resolved target cldigits, in target order.
 
         """
-        self._check_targets(qudits, clbytes)
+        self._check_targets(qudits, cldigits)
         qubits = [qubit for qudit in qudits for qubit in qudit.qubits]
         if qubits:
             circuit.barrier(*qubits, label=self.label)
@@ -228,26 +228,26 @@ class QuditReset(QuditDirective):
         self,
         circuit: QuantumCircuit,
         qudits: Sequence[Qudit],
-        clbytes: Sequence[ClByte],
+        cldigits: Sequence[ClDigit],
     ) -> None:
         """Reset every encoding qubit of each target qudit.
 
         Args:
             circuit: The encoded circuit to mutate.
             qudits: Resolved target qudits, in target order.
-            clbytes: Resolved target clbytes, in target order.
+            cldigits: Resolved target cldigits, in target order.
 
         """
-        self._check_targets(qudits, clbytes)
+        self._check_targets(qudits, cldigits)
         for qudit in qudits:
             for qubit in qudit.qubits:
                 circuit.reset(qubit)
 
 
 class QuditMeasure(QuditDirective):
-    r"""Measure qudits into clbytes in the computational (level) basis.
+    r"""Measure qudits into cldigits in the computational (level) basis.
 
-    Qubit ``j`` of a qudit is measured into clbit ``j`` of its clbyte,
+    Qubit ``j`` of a qudit is measured into clbit ``j`` of its cldigit,
     so the recorded bits are the little-endian binary expansion of the
     measured level.
     """
@@ -263,7 +263,7 @@ class QuditMeasure(QuditDirective):
         super().__init__(
             "measure",
             dims,
-            num_clbytes=len(list(dims)),
+            num_cldigits=len(list(dims)),
             num_clbits=sum(widths),
         )
 
@@ -271,29 +271,29 @@ class QuditMeasure(QuditDirective):
         self,
         circuit: QuantumCircuit,
         qudits: Sequence[Qudit],
-        clbytes: Sequence[ClByte],
+        cldigits: Sequence[ClDigit],
     ) -> None:
         """Emit one primitive measurement per encoding qubit.
 
         Args:
             circuit: The encoded circuit to mutate.
             qudits: Resolved target qudits, in target order.
-            clbytes: Resolved target clbytes, in target order.
+            cldigits: Resolved target cldigits, in target order.
 
         Raises:
-            QuditCircuitError: If a clbyte is too narrow for its qudit,
+            QuditCircuitError: If a cldigit is too narrow for its qudit,
                 or on an arity or dimension mismatch.
         """
-        self._check_targets(qudits, clbytes)
-        for qudit, clbyte in zip(qudits, clbytes, strict=True):
-            if clbyte.num_clbits != qudit.num_qubits:
+        self._check_targets(qudits, cldigits)
+        for qudit, cldigit in zip(qudits, cldigits, strict=True):
+            if cldigit.num_clbits != qudit.num_qubits:
                 raise QuditCircuitError(
                     f"cannot measure a {qudit.dim}-level qudit "
-                    f"({qudit.num_qubits} qubit(s)) into a clbyte of "
-                    f"{clbyte.num_clbits} bit(s).",
+                    f"({qudit.num_qubits} qubit(s)) into a cldigit of "
+                    f"{cldigit.num_clbits} bit(s).",
                 )
-        for qudit, clbyte in zip(qudits, clbytes, strict=True):
-            for qubit, clbit in zip(qudit.qubits, clbyte.clbits, strict=True):
+        for qudit, cldigit in zip(qudits, cldigits, strict=True):
+            for qubit, clbit in zip(qudit.qubits, cldigit.clbits, strict=True):
                 circuit.measure(qubit, clbit)
 
 
@@ -330,19 +330,19 @@ class QuditInitializeLevels(QuditDirective):
         self,
         circuit: QuantumCircuit,
         qudits: Sequence[Qudit],
-        clbytes: Sequence[ClByte],
+        cldigits: Sequence[ClDigit],
     ) -> None:
         """Prepare each target qudit in its basis state.
 
         Args:
             circuit: The encoded circuit to mutate.
             qudits: Resolved target qudits, in target order.
-            clbytes: Resolved target clbytes, in target order.
+            cldigits: Resolved target cldigits, in target order.
 
         Raises:
             QuditCircuitError: On an arity or dimension mismatch.
         """
-        self._check_targets(qudits, clbytes)
+        self._check_targets(qudits, cldigits)
         for qudit, state in zip(qudits, self._states, strict=True):
             # Qiskit applies the leftmost character of the label to the
             # *last* qubit of the list, and `level_to_bitstring` is
@@ -392,17 +392,17 @@ class QuditStatePreparation(QuditDirective):
         self,
         circuit: QuantumCircuit,
         qudits: Sequence[Qudit],
-        clbytes: Sequence[ClByte],
+        cldigits: Sequence[ClDigit],
     ) -> None:
         """Prepare the encoded state on the target qudits.
 
         Args:
             circuit: The encoded circuit to mutate.
             qudits: Resolved target qudits, in target order.
-            clbytes: Resolved target clbytes, in target order.
+            cldigits: Resolved target cldigits, in target order.
 
         """
-        self._check_targets(qudits, clbytes)
+        self._check_targets(qudits, cldigits)
         qubits = [qubit for qudit in qudits for qubit in qudit.qubits]
         circuit.initialize(
             embed_state(self._dims, self._amplitudes).tolist(),

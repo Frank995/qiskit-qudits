@@ -273,7 +273,7 @@ class TestDecodeBitstring:
         widths: list[int],
         expected: tuple[int, ...],
     ) -> None:
-        """Each chunk becomes one level, byte 0 first."""
+        """Each chunk becomes one level, digit 0 first."""
         assert decode_bitstring(bitstring, widths) == expected
 
     def test_keeps_in_subspace_levels_when_dims_are_given(self) -> None:
@@ -294,11 +294,11 @@ class TestDecodeBitstring:
         decoded = decode_bitstring("11 00", [2, 2], (3, 3), on_invalid="drop")
         assert decoded is None
 
-    def test_raise_policy_reports_the_offending_byte(self) -> None:
-        """``'raise'`` names the byte, its level and the subspace."""
+    def test_raise_policy_reports_the_offending_digit(self) -> None:
+        """``'raise'`` names the digit, its level and the subspace."""
         with pytest.raises(
             ValueError,
-            match="byte 1 decoded to level 3, which is outside the 3-level",
+            match="digit 1 decoded to level 3, which is outside the 3-level",
         ):
             decode_bitstring("11 00", [2, 2], (3, 3), on_invalid="raise")
 
@@ -316,8 +316,8 @@ class TestDecodeBitstring:
         self,
         dims: tuple[int, ...],
     ) -> None:
-        """``dims`` must have one entry per byte."""
-        with pytest.raises(ValueError, match=r"dimension\(s\) for 2 byte"):
+        """``dims`` must have one entry per digit."""
+        with pytest.raises(ValueError, match=r"dimension\(s\) for 2 digit"):
             decode_bitstring("10 01", [2, 2], dims)
 
     def test_propagates_a_width_mismatch(self) -> None:
@@ -392,12 +392,12 @@ class TestFormatLevels:
             ((10, 2), "2 10"),
         ],
     )
-    def test_renders_the_last_byte_leftmost(
+    def test_renders_the_last_digit_leftmost(
         self,
         levels: tuple[int, ...],
         expected: str,
     ) -> None:
-        """Rendering reverses byte order, like Qiskit bit-strings."""
+        """Rendering reverses digit order, like Qiskit bit-strings."""
         assert format_levels(levels) == expected
 
     @pytest.mark.parametrize(

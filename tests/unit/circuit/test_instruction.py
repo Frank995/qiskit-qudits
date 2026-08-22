@@ -2,7 +2,7 @@
 
 :class:`~qiskit_qudits.circuit.instruction.QuditCircuitInstruction` is
 a frozen, slotted dataclass pairing an operation with its qudit and
-clbyte operands. The operation used throughout is a plain Qiskit
+cldigit operands. The operation used throughout is a plain Qiskit
 :class:`~qiskit.circuit.Instruction`, which keeps the tests focused on
 the container rather than on any gate implementation.
 """
@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from qiskit.circuit import Instruction
 
-from qiskit_qudits.circuit.clbyte import ClByte
+from qiskit_qudits.circuit.cldigit import ClDigit
 from qiskit_qudits.circuit.instruction import QuditCircuitInstruction
 from qiskit_qudits.circuit.qudit import Qudit
 
@@ -34,11 +34,11 @@ def instruction(
     operation: Instruction,
     qutrit_register: QuditRegister,
 ) -> QuditCircuitInstruction:
-    """One qutrit target and one qutrit-sized clbyte."""
+    """One qutrit target and one qutrit-sized cldigit."""
     return QuditCircuitInstruction(
         operation,
         (qutrit_register[0],),
-        (ClByte(3),),
+        (ClDigit(3),),
     )
 
 
@@ -53,9 +53,9 @@ class TestQuditCircuitInstructionBasics:
         instruction = QuditCircuitInstruction(operation)
         assert instruction.operation is operation
         assert instruction.qudits == ()
-        assert instruction.clbytes == ()
+        assert instruction.cldigits == ()
         assert instruction.num_qudits == 0
-        assert instruction.num_clbytes == 0
+        assert instruction.num_cldigits == 0
         assert instruction.dims == ()
 
     @pytest.mark.parametrize("name", ["dummy", "measure", "qudit_x"])
@@ -74,10 +74,10 @@ class TestQuditCircuitInstructionBasics:
         instruction = QuditCircuitInstruction(
             operation,
             (qutrit_register[0], Qudit(4), Qudit(2)),
-            (ClByte(3), ClByte(4)),
+            (ClDigit(3), ClDigit(4)),
         )
         assert instruction.num_qudits == 3
-        assert instruction.num_clbytes == 2
+        assert instruction.num_cldigits == 2
         assert instruction.dims == (3, 4, 2)
 
     def test_it_is_a_slotted_dataclass(
@@ -89,7 +89,7 @@ class TestQuditCircuitInstructionBasics:
         assert [field.name for field in fields(instruction)] == [
             "operation",
             "qudits",
-            "clbytes",
+            "cldigits",
         ]
         assert not hasattr(instruction, "__dict__")
         assert getattr(QuditCircuitInstruction, "__final__", False) is True
@@ -106,7 +106,7 @@ class TestQuditCircuitInstructionBasics:
         )
         assert repr(instruction) == (
             "QuditCircuitInstruction(dummy, "
-            "qudits=(Qudit(qt[0], d=3),), clbytes=())"
+            "qudits=(Qudit(qt[0], d=3),), cldigits=())"
         )
 
 
@@ -122,7 +122,7 @@ class TestReplace:
         derived = instruction.replace(operation=other)
         assert derived.operation is other
         assert derived.qudits is instruction.qudits
-        assert derived.clbytes is instruction.clbytes
+        assert derived.cldigits is instruction.cldigits
 
     def test_replacing_the_qudits_keeps_the_rest(
         self,
@@ -134,16 +134,16 @@ class TestReplace:
         assert derived.qudits is qudits
         assert derived.dims == (4, 5)
         assert derived.operation is instruction.operation
-        assert derived.clbytes is instruction.clbytes
+        assert derived.cldigits is instruction.cldigits
 
-    def test_replacing_the_clbytes_keeps_the_rest(
+    def test_replacing_the_cldigits_keeps_the_rest(
         self,
         instruction: QuditCircuitInstruction,
     ) -> None:
-        """Only the clbyte operands change."""
-        clbytes = (ClByte(2),)
-        derived = instruction.replace(clbytes=clbytes)
-        assert derived.clbytes is clbytes
+        """Only the cldigit operands change."""
+        cldigits = (ClDigit(2),)
+        derived = instruction.replace(cldigits=cldigits)
+        assert derived.cldigits is cldigits
         assert derived.operation is instruction.operation
         assert derived.qudits is instruction.qudits
 
@@ -155,13 +155,13 @@ class TestReplace:
         original = (
             instruction.operation,
             instruction.qudits,
-            instruction.clbytes,
+            instruction.cldigits,
         )
         derived = instruction.replace(qudits=(Qudit(2),))
         assert derived is not instruction
         assert instruction.operation is original[0]
         assert instruction.qudits is original[1]
-        assert instruction.clbytes is original[2]
+        assert instruction.cldigits is original[2]
 
     def test_none_means_keep(
         self,
@@ -171,7 +171,7 @@ class TestReplace:
         derived = instruction.replace(
             operation=None,
             qudits=None,
-            clbytes=None,
+            cldigits=None,
         )
         assert derived == instruction
         assert derived is not instruction
@@ -182,11 +182,11 @@ class TestReplace:
         instruction: QuditCircuitInstruction,
     ) -> None:
         """An empty tuple is a value, not the keep sentinel."""
-        derived = instruction.replace(qudits=(), clbytes=())
+        derived = instruction.replace(qudits=(), cldigits=())
         assert derived.qudits == ()
-        assert derived.clbytes == ()
+        assert derived.cldigits == ()
         assert derived.num_qudits == 0
-        assert derived.num_clbytes == 0
+        assert derived.num_cldigits == 0
 
 
 class TestImmutability:
@@ -197,7 +197,7 @@ class TestImmutability:
         [
             ("operation", Instruction("other", 1, 0, [])),
             ("qudits", ()),
-            ("clbytes", ()),
+            ("cldigits", ()),
         ],
     )
     def test_fields_cannot_be_assigned(
@@ -212,7 +212,7 @@ class TestImmutability:
 
     @pytest.mark.parametrize(
         "field",
-        ["operation", "qudits", "clbytes"],
+        ["operation", "qudits", "cldigits"],
     )
     def test_fields_cannot_be_deleted(
         self,

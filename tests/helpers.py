@@ -234,7 +234,7 @@ def sample_levels(
         on_invalid: Leakage policy forwarded to ``decode_counts``.
 
     Returns:
-        Mapping from a tuple of levels (clbyte order) to shot counts.
+        Mapping from a tuple of levels (cldigit order) to shot counts.
     """
     counts = run_counts(circuit, shots=shots, seed=seed)
     return circuit.decode_counts(counts, on_invalid=on_invalid)

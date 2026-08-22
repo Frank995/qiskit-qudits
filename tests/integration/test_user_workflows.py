@@ -103,7 +103,7 @@ class TestReadmeJourney:
         self,
         seed: int,
     ) -> None:
-        """The leftmost rendered token is the last clbyte."""
+        """The leftmost rendered token is the last cldigit."""
         circuit = _readme_circuit()
 
         observed = sample_levels(
@@ -172,14 +172,14 @@ class TestMixedDimensionCircuit:
             shots=SHORT_RUN_SHOTS,
         )
 
-    def test_clbyte_layout_matches_the_qudit_dimensions(self) -> None:
-        """The clbyte layout mirrors the qudit dimensions."""
+    def test_cldigit_layout_matches_the_qudit_dimensions(self) -> None:
+        """The cldigit layout mirrors the qudit dimensions."""
         circuit = QuditQuantumCircuit(_mixed_register())
         circuit.measure_all()
 
         assert circuit.dims == (2, 3, 5)
-        assert circuit.clbyte_dims == (2, 3, 5)
-        assert circuit.clbyte_widths == (1, 2, 3)
+        assert circuit.cldigit_dims == (2, 3, 5)
+        assert circuit.cldigit_widths == (1, 2, 3)
         assert circuit.num_clbits == 6
         assert circuit.num_qubits == 6
 
@@ -219,34 +219,34 @@ class TestMixedDimensionCircuit:
 class TestMeasureAll:
     """The three ways of asking for a full measurement."""
 
-    def test_add_bytes_creates_one_clbyte_per_qudit(
+    def test_add_digits_creates_one_cldigit_per_qudit(
         self,
         shots: int,
         seed: int,
     ) -> None:
-        """A circuit with no clbytes grows a 'meas' register."""
+        """A circuit with no cldigits grows a 'meas' register."""
         circuit = QuditQuantumCircuit(2, dim=3)
-        assert circuit.num_clbytes == 0
+        assert circuit.num_cldigits == 0
 
         circuit.measure_all()
 
-        assert circuit.num_clbytes == 2
-        assert circuit.clbyte_widths == (2, 2)
+        assert circuit.num_cldigits == 2
+        assert circuit.cldigit_widths == (2, 2)
 
         observed = sample_levels(circuit, shots=shots, seed=seed)
         assert_deterministic_outcome(observed, (0, 0), shots=shots)
 
-    def test_add_bytes_false_reuses_the_existing_clbytes(
+    def test_add_digits_false_reuses_the_existing_cldigits(
         self,
         shots: int,
         seed: int,
     ) -> None:
-        """No register is added; clbyte i receives qudit i."""
+        """No register is added; cldigit i receives qudit i."""
         circuit = QuditQuantumCircuit(2, 2, dim=3)
         circuit.x(0)
-        circuit.measure_all(add_bytes=False)
+        circuit.measure_all(add_digits=False)
 
-        assert circuit.num_clbytes == 2
+        assert circuit.num_cldigits == 2
         assert circuit.num_clbits == 4
 
         observed = sample_levels(circuit, shots=shots, seed=seed)
@@ -264,9 +264,9 @@ class TestMeasureAll:
         measured = original.measure_all(inplace=False)
 
         assert measured is not None
-        assert original.num_clbytes == 0
+        assert original.num_cldigits == 0
         assert original.num_clbits == 0
-        assert measured.num_clbytes == 1
+        assert measured.num_cldigits == 1
 
         # Still measurement-free, so it has a state-vector.
         assert_allclose(
@@ -342,7 +342,7 @@ class TestQiskitInteroperability:
         ideal = circuit.to_ideal_circuit()
 
         assert ideal.num_qubits == circuit.num_qudits == 2
-        assert ideal.num_clbits == circuit.num_clbytes == 2
+        assert ideal.num_clbits == circuit.num_cldigits == 2
         assert circuit.num_qubits == 4
 
     def test_an_unknown_view_is_rejected(self) -> None:

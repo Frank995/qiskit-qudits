@@ -1,6 +1,6 @@
 """Operand resolution and validation of ``QuditQuantumCircuit``.
 
-Covers ``_qudit_argument_conversion`` / ``_clbyte_argument_conversion``
+Covers ``_qudit_argument_conversion`` / ``_cldigit_argument_conversion``
 (directly and through ``append``), the duplicate-operand guard, every
 branch of ``_validate_operands`` and ``_operation_dims``, the ``copy``
 flag and the atomicity of a failed ``append``.
@@ -15,7 +15,7 @@ import pytest
 from qiskit.circuit import Instruction, Measure
 from qiskit.circuit.library import CXGate, XGate
 
-from qiskit_qudits.circuit.clbyte import ClByte, ClByteRegister
+from qiskit_qudits.circuit.cldigit import ClDigit, ClDigitRegister
 from qiskit_qudits.circuit.directives import QuditBarrier, QuditMeasure
 from qiskit_qudits.circuit.exceptions import QuditCircuitError
 from qiskit_qudits.circuit.quantumcircuit import QuditQuantumCircuit
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 # ------------------------------------------------------------------ #
 @pytest.fixture
 def circuit() -> QuditQuantumCircuit:
-    """Return three qutrits with three matching clbytes."""
+    """Return three qutrits with three matching cldigits."""
     return QuditQuantumCircuit(3, 3, dim=3)
 
 
@@ -105,7 +105,7 @@ class TestQuditArgumentConversion:
             ),
             (lambda _: 1.5, "invalid qudit specifier"),
             (lambda _: [1.5], "invalid qudit specifier element"),
-            (lambda qc: [qc.clbytes[0]], "invalid qudit specifier element"),
+            (lambda qc: [qc.cldigits[0]], "invalid qudit specifier element"),
         ],
         ids=[
             "string",
@@ -115,7 +115,7 @@ class TestQuditArgumentConversion:
             "foreign-register",
             "float",
             "float-element",
-            "clbyte-element",
+            "cldigit-element",
         ],
     )
     def test_invalid_specifier_raises(
@@ -146,23 +146,23 @@ class TestQuditArgumentConversion:
             circuit.append(QuditXGate(3), "0")
 
 
-class TestClbyteArgumentConversion:
-    """``_clbyte_argument_conversion`` for every specifier form."""
+class TestCldigitArgumentConversion:
+    """``_cldigit_argument_conversion`` for every specifier form."""
 
     @pytest.mark.parametrize(
         ("build", "expected"),
         [
-            (lambda qc: qc.clbytes[1], [1]),
+            (lambda qc: qc.cldigits[1], [1]),
             (lambda qc: qc.cbregs[0], [0, 1, 2]),
             (lambda _: 2, [2]),
             (lambda _: -1, [2]),
             (lambda _: np.int64(1), [1]),
             (lambda _: slice(0, 2), [0, 1]),
-            (lambda qc: [qc.clbytes[2], 0], [2, 0]),
+            (lambda qc: [qc.cldigits[2], 0], [2, 0]),
             (lambda _: (), []),
         ],
         ids=[
-            "clbyte",
+            "cldigit",
             "register",
             "index",
             "negative-index",
@@ -172,37 +172,37 @@ class TestClbyteArgumentConversion:
             "empty-sequence",
         ],
     )
-    def test_specifier_resolves_to_clbytes(
+    def test_specifier_resolves_to_cldigits(
         self,
         circuit: QuditQuantumCircuit,
         build: Callable[[QuditQuantumCircuit], object],
         expected: list[int],
     ) -> None:
         """Every accepted specifier resolves in the implied order."""
-        resolved = circuit._clbyte_argument_conversion(build(circuit))
+        resolved = circuit._cldigit_argument_conversion(build(circuit))
 
-        assert resolved == [circuit.clbytes[index] for index in expected]
+        assert resolved == [circuit.cldigits[index] for index in expected]
 
     @pytest.mark.parametrize(
         ("build", "message"),
         [
-            (lambda _: "0", "strings are not valid clbyte"),
+            (lambda _: "0", "strings are not valid cldigit"),
             (lambda _: 3, "out of range"),
             (lambda _: -4, "out of range"),
-            (lambda _: ClByte(3), "not in this circuit"),
+            (lambda _: ClDigit(3), "not in this circuit"),
             (
-                lambda _: ClByteRegister(1, 3, "foreign"),
+                lambda _: ClDigitRegister(1, 3, "foreign"),
                 "'foreign' is not in this circuit",
             ),
-            (lambda _: 1.5, "invalid clbyte specifier"),
-            (lambda _: [1.5], "invalid clbyte specifier element"),
-            (lambda qc: [qc.qudits[0]], "invalid clbyte specifier element"),
+            (lambda _: 1.5, "invalid cldigit specifier"),
+            (lambda _: [1.5], "invalid cldigit specifier element"),
+            (lambda qc: [qc.qudits[0]], "invalid cldigit specifier element"),
         ],
         ids=[
             "string",
             "index-too-large",
             "index-too-negative",
-            "foreign-clbyte",
+            "foreign-cldigit",
             "foreign-register",
             "float",
             "float-element",
@@ -217,16 +217,16 @@ class TestClbyteArgumentConversion:
     ) -> None:
         """Unsupported specifiers raise a ``QuditCircuitError``."""
         with pytest.raises(QuditCircuitError, match=message):
-            circuit._clbyte_argument_conversion(build(circuit))
+            circuit._cldigit_argument_conversion(build(circuit))
 
     def test_append_uses_the_conversion(
         self,
         circuit: QuditQuantumCircuit,
     ) -> None:
-        """``append`` resolves its ``clbytes`` argument the same way."""
+        """``append`` resolves its ``cldigits`` argument the same way."""
         instruction = circuit.append(QuditMeasure([3]), 0, -2)
 
-        assert instruction.clbytes == (circuit.clbytes[1],)
+        assert instruction.cldigits == (circuit.cldigits[1],)
 
 
 class TestDuplicateOperands:
@@ -240,12 +240,12 @@ class TestDuplicateOperands:
         with pytest.raises(QuditCircuitError, match="duplicate qudit"):
             circuit.append(QuditBarrier([3, 3]), [0, 0])
 
-    def test_duplicate_clbytes_are_rejected(
+    def test_duplicate_cldigits_are_rejected(
         self,
         circuit: QuditQuantumCircuit,
     ) -> None:
-        """The same clbyte cannot appear twice in one operation."""
-        with pytest.raises(QuditCircuitError, match="duplicate clbyte"):
+        """The same cldigit cannot appear twice in one operation."""
+        with pytest.raises(QuditCircuitError, match="duplicate cldigit"):
             circuit.append(QuditMeasure([3, 3]), [0, 1], [2, 2])
 
 
@@ -289,24 +289,24 @@ class TestAppendValidation:
         ):
             circuit.append(XGate(), 0)
 
-    def test_directive_clbyte_count_mismatch_is_rejected(
+    def test_directive_cldigit_count_mismatch_is_rejected(
         self,
         circuit: QuditQuantumCircuit,
     ) -> None:
-        """A measure directive needs exactly one clbyte per qudit."""
-        with pytest.raises(QuditCircuitError, match="acts on 1 clbyte"):
+        """A measure directive needs exactly one cldigit per qudit."""
+        with pytest.raises(QuditCircuitError, match="acts on 1 cldigit"):
             circuit.append(QuditMeasure([3]), 0)
 
     def test_plain_clbit_count_mismatch_is_rejected(self) -> None:
-        """A non-directive is checked against the clbyte widths."""
+        """A non-directive is checked against the cldigit widths."""
         narrow = QuditQuantumCircuit(
             QuditRegister(1, 2, "q"),
-            ClByteRegister(1, 3, "c"),
+            ClDigitRegister(1, 3, "c"),
         )
 
         with pytest.raises(
             QuditCircuitError,
-            match=r"acts on 1 clbit.* but the target clbytes provide 2",
+            match=r"acts on 1 clbit.* but the target cldigits provide 2",
         ):
             narrow.append(Measure(), 0, 0)
 
@@ -443,7 +443,7 @@ class TestAtomicity:
         """A directive that refuses to expand records nothing."""
         narrow = QuditQuantumCircuit(
             QuditRegister(1, 4, "q"),
-            ClByteRegister(1, 2, "c"),
+            ClDigitRegister(1, 2, "c"),
         )
 
         with pytest.raises(QuditCircuitError, match="cannot measure"):
@@ -467,7 +467,7 @@ class TestBookkeeping:
 
         assert instruction.operation is gate
         assert instruction.qudits == (circuit.qudits[1],)
-        assert instruction.clbytes == ()
+        assert instruction.cldigits == ()
         assert circuit.data[-1] is instruction
 
     def test_a_zero_operand_directive_touches_only_the_log(self) -> None:
@@ -505,6 +505,6 @@ class TestBookkeeping:
         ]
         assert list(encoded[0].qubits) == list(circuit.qudits[1].qubits)
         assert list(encoded[1].qubits) == [circuit.qudits[0].qubits[0]]
-        assert list(encoded[1].clbits) == [circuit.clbytes[2].clbits[0]]
+        assert list(encoded[1].clbits) == [circuit.cldigits[2].clbits[0]]
         assert list(encoded[2].qubits) == [circuit.qudits[0].qubits[1]]
-        assert list(encoded[2].clbits) == [circuit.clbytes[2].clbits[1]]
+        assert list(encoded[2].clbits) == [circuit.cldigits[2].clbits[1]]
