@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import itertools
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, ClassVar, TypeAlias, final, overload
+from typing import TYPE_CHECKING, ClassVar, Self, TypeAlias, final, overload
 
 from qiskit._accelerate.circuit import ClassicalRegister, Clbit
 
@@ -115,6 +115,14 @@ class ClByte:
         if self._register is None or self._index is None:
             return f"ClByte(d={self._dim})"
         return f"ClByte({self._register.name}[{self._index}], d={self._dim})"
+
+    def __copy__(self) -> Self:
+        """Return a copy of the object."""
+        return self
+
+    def __deepcopy__(self, memo: dict[int, object] | None = None) -> Self:
+        """Return a copy of the object."""
+        return self
 
 
 class ClByteRegister:
@@ -288,6 +296,14 @@ class ClByteRegister:
             f"ClByteRegister({self.size}, dims={self._dims}, "
             f"'{self._name}')"
         )
+
+    def __copy__(self) -> Self:
+        """Return a copy of the object."""
+        return self
+
+    def __deepcopy__(self, memo: dict[int, object] | None = None) -> Self:
+        """Return a copy of the object."""
+        return self
 
 
 #: Anything accepted where a clbyte (or several) is expected.
