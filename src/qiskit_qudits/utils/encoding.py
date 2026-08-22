@@ -39,7 +39,8 @@ if TYPE_CHECKING:
 #: (i.e. ``value >= dim``), which is a signature of leakage.
 InvalidPolicy: TypeAlias = Literal["keep", "drop", "raise"]
 
-#: A decoded shot: one level per :class:`.ClDigit`, in clbit-index order.
+#: A decoded shot: one level per :class:`.ClDigit`,
+# in clbit-index order.
 Levels: TypeAlias = tuple[int, ...]
 
 _DEFAULT_ATOL = 1e-8
@@ -172,8 +173,9 @@ def decode_bitstring(
         if level >= int(dim):
             if on_invalid == "raise":
                 raise ValueError(
-                    f"digit {index} decoded to level {level}, which is outside "
-                    f"the {int(dim)}-level qudit subspace (leakage?).",
+                    f"digit {index} decoded to level {level}, which is "
+                    f"outside the {int(dim)}-level qudit subspace "
+                    "(leakage?).",
                 )
             if on_invalid == "drop":
                 return None
@@ -198,8 +200,8 @@ def decode_counts(
         on_invalid: See :func:`decode_bitstring`.
 
     Returns:
-        Mapping from a tuple of levels (**digit order**, digit 0 first) to
-        the aggregated number of shots. Use :func:`format_levels` to
+        Mapping from a tuple of levels (**digit order**, digit 0 first)
+        to the aggregated number of shots. Use :func:`format_levels` to
         get a Qiskit-ordered, human-readable key.
     """
     decoded: Counter[Levels] = Counter()

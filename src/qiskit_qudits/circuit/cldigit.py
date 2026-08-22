@@ -32,8 +32,8 @@ class ClDigit:
 
         \ell = \sum_j \mathrm{bit}_j \, 2^j ,
 
-    and in a backend counts key the digit's character slice is MSB-first,
-    so ``int(slice, 2)`` is directly the measured level. See
+    and in a backend counts key the digit's character slice is
+    MSB-first, so ``int(slice, 2)`` is directly the measured level. See
     :mod:`qiskit_qudits.utils.encoding` for the decoding helpers.
 
     Instances compare and hash by identity.
@@ -80,7 +80,9 @@ class ClDigit:
                     f"clbit(s), got {len(self._clbits)}.",
                 )
             if len(set(self._clbits)) != width:
-                raise QuditCircuitError("duplicate clbits in a single cldigit.")
+                raise QuditCircuitError(
+                    "duplicate clbits in a single cldigit.",
+                )
 
         self._register: ClDigitRegister | None = register
         self._index: int | None = index
@@ -138,7 +140,7 @@ class ClDigitRegister:
 
             from qiskit_qudits.circuit.cldigit import ClDigitRegister
 
-            out = ClDigitRegister(2, 4, "out")       # 2 digits x 2 clbits
+            out = ClDigitRegister(2, 4, "out")     # 2 digits x 2 clbits
             mixed = ClDigitRegister.from_dims([3, 16])
     """
 
