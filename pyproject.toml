@@ -52,7 +52,7 @@ dev = [
   "pytest>=9.1.0",
 ]
 
-[tool.setuptools_scm]
+[tool.setuptools_scm.tag]
 strict = true
 
 [tool.pytest.ini_options]
