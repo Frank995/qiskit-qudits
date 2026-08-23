@@ -1,7 +1,7 @@
 [build-system]
 requires = [
     "setuptools>=77.0",
-    "setuptools-scm>=9.0"
+    "setuptools-scm[simple]>=9.0"
 ]
 build-backend = "setuptools.build_meta"
 
@@ -30,10 +30,9 @@ keywords = [
     "quantum qudits",
 ]
 classifiers = [
-    "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: GNU Affero General Public License version 3",
+    "Intended Audience :: Information Technology",
     "Operating System :: MacOS",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
@@ -41,7 +40,8 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Quantum Computing",
+    "Classifier: Development Status :: 4 - Beta",
 ]
 
 [project.optional-dependencies]
@@ -51,6 +51,10 @@ dev = [
   "pyright>=1.1.411",
   "pytest>=9.1.0",
 ]
+
+[tool.setuptools_scm]
+prefix = "v"
+strict = true
 
 [tool.pytest.ini_options]
 minversion = "9.1"
